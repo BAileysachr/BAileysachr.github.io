@@ -250,7 +250,7 @@ function showToast(msg,col){
   setTimeout(function(){t.style.opacity='0';setTimeout(function(){t.remove();},300);},2200);
 }
 
-function claudeCmd(type,title,body){
+function claudeCmd(type,title,body,onSuccess){
   var tok=getGHToken();
   if(!tok){
     tok=prompt('One-time setup: paste your GitHub Personal Access Token.\n\nNeeds "Issues: Write" access on BAileysachr/BAileysachr.github.io.\n\nGenerate at: github.com/settings/tokens');
@@ -264,13 +264,15 @@ function claudeCmd(type,title,body){
     headers:{'Authorization':'Bearer '+tok,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'},
     body:JSON.stringify({title:issueTitle,body:issueBody,labels:['claude-command']})
   }).then(function(r){
-    if(r.ok){showToast('Sent to Claude!','g');}
+    if(r.ok){showToast('Sent to Claude!','g');if(onSuccess)onSuccess();}
     else{r.json().then(function(e){
       showToast('Error: '+(e.message||r.status),'r');
       if(r.status===401){setGHToken('');showToast('Token invalid — tap settings to reset','r');}
     });}
   }).catch(function(){showToast('Network error — check connection','r');});
 }
+
+function fadeRemove(el){if(!el)return;el.style.transition='opacity .25s';el.style.opacity='0';setTimeout(function(){el.remove();},260);}
 
 // Settings button — manage token
 document.getElementById('btn-settings').addEventListener('click',function(){
@@ -468,7 +470,8 @@ function sendNote(){
     var sender=btn.getAttribute("data-sender");
     var subject=btn.getAttribute("data-subject");
     if(btn.getAttribute("data-done")==="1"){
-      claudeCmd('CLAUDE DONE',subject,'Mark this as done - already handled.\n\nSender: '+sender+'\nSubject: '+subject);
+      var card=btn.closest(".ecard");
+      claudeCmd('CLAUDE DONE',subject,'Mark this as done - already handled.\n\nSender: '+sender+'\nSubject: '+subject,function(){fadeRemove(card);});
     } else {
       openAction(sender,subject,"");
     }
@@ -482,7 +485,8 @@ function sendNote(){
   document.getElementById("list-open").addEventListener("click",function(e){
     var btn=e.target.closest(".btn-done-tick");if(!btn)return;
     var task=btn.getAttribute("data-task");
-    claudeCmd('CLAUDE DONE',task.substring(0,60),'Mark this open item as complete:\n\n'+task+'\n\n(Sent from Bailey HQ dashboard)');
+    var item=btn.closest(".oitem");
+    claudeCmd('CLAUDE DONE',task.substring(0,60),'Mark this open item as complete:\n\n'+task+'\n\n(Sent from Bailey HQ dashboard)',function(){fadeRemove(item);});
   });
   document.getElementById("list-open").addEventListener("touchend",function(e){
     var btn=e.target.closest(".btn-done-tick");if(!btn)return;
