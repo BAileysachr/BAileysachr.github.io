@@ -16,7 +16,11 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .live-pill{display:flex;align-items:center;gap:5px;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);border-radius:20px;padding:3px 9px;font-size:11px;font-weight:600;color:var(--green)}
 .live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1.8s ease-in-out infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+.topbar-right{display:flex;align-items:center;gap:8px}
 .topbar-time{font-size:11px;color:var(--muted)}
+.btn-settings{background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;padding:4px 6px;touch-action:manipulation;-webkit-tap-highlight-color:transparent;line-height:1}
+.btn-settings:active{color:var(--text)}
+.token-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-left:2px;vertical-align:middle}
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px 16px 0}
 .stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 8px;text-align:center}
 .stat-num{font-size:26px;font-weight:800;line-height:1;margin-bottom:3px}
@@ -63,6 +67,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .note-input::placeholder{color:var(--sub)}
 .btn-note-send{padding:9px 14px;background:var(--blue);border:none;border-radius:10px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;white-space:nowrap}
 .btn-note-send:active{opacity:.8}
+/* TOAST */
+.hq-toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);padding:10px 20px;border-radius:20px;font-size:13px;font-weight:700;z-index:99999;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.4);transition:opacity .3s;pointer-events:none}
 /* TABS */
 .tabs{display:flex;gap:6px;padding:12px 16px 0;overflow-x:auto;-webkit-overflow-scrolling:touch}
 .tabs::-webkit-scrollbar{display:none}
@@ -107,7 +113,6 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 </style>
 </head>
 <body>
-
 <script id="dashboard-data" type="application/json">
 {"lastUpdated":"2026-04-13T00:24:54.000Z","runCount":2,"firstRunDone":true,"stats":{"actioned":0,"needsBailey":2,"marketingMoved":0},"needsBailey":[{"sender":"Narelle Ellis — NGirl Design","subject":"RE: LUM5261 - Luma Blackberry Label v2","note":"Bailey gave feedback: lettering too dark. Awaiting Narelle V3 revision. Monitor for reply.","time":"10:09 AM","account":"plastix"},{"sender":"Craig — Macumen","subject":"Appsmith Invoice 24582","note":"Craig OOO until Apr 28. Bailey disputed invoice for FM work. Revisit when Craig returns.","time":"11:54 PM","account":"plastix"}],"actioned":[],"cleaned":[],"openItems":[{"text":"Rallings Print — Confirm label print lead times NOW. Deadline was April 11. Call Brad Low 0418 194 225 or Paul Scott 0409 390 209.","biz":"luma","priority":"urgent"},{"text":"Shopify dev — DEADLINE TOMORROW Apr 14. Contact Michael Jones (Conscious Commerce) to begin Luma store build.","biz":"luma","priority":"urgent"},{"text":"Chase Taylah — Confirm @lumahydration Instagram + TikTok handles secured.","biz":"luma","priority":"urgent"},{"text":"Linda Bell (Christmas Co) — Q263264 weight of acrylic gift boxes needed to complete quote.","biz":"plastix","priority":"urgent"},{"text":"Lauren Garvey (Displaywise) — Yonex DXF received. Review and provide laser cut quote.","biz":"plastix","priority":"urgent"},{"text":"Brief photographer — editorial fruit shoot for Luma cans. Deadline April 15. Natural light, no studio.","biz":"luma","priority":"normal"},{"text":"Narelle (LUM5261) — Await updated invoice $370 ex GST. Pay same day on receipt.","biz":"luma","priority":"normal"},{"text":"Await trademark result from MMW (Jacqui Pryor) — expected ~Apr 17.","biz":"luma","priority":"normal"},{"text":"Await Not Just IT re: Hello@lilhottie.com.au connected mailbox (requested Apr 10).","biz":"lilhottie","priority":"normal"},{"text":"Appsmith Invoice 24582 — Revisit with Craig (Macumen) when he returns Apr 28.","biz":"plastix","priority":"low"},{"text":"TBR with Joel Gardner (Not Just IT) — Apr 23 (online).","biz":"plastix","priority":"low"}],"history":[{"time":"2026-04-10T01:20:00.000Z","actioned":0,"needsBailey":3,"cleaned":0}],"businessStatus":{"plastix":{"status":"Operational","nextUp":"Q263264 weight for Linda","openEmails":2},"luma":{"status":"Pre-launch Jun/Jul","nextUp":"Shopify dev by Apr 14!","openEmails":1},"lilhottie":{"status":"Live & selling","nextUp":"Mailbox via Not Just IT","openEmails":0}}}
 </script>
@@ -134,7 +139,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   <div id="action-sheet">
     <div class="action-handle"></div>
     <div class="action-target-label">Actioning:</div>
-    <div class="action-target-val" id="action-target-val">—</div>
+    <div class="action-target-val" id="action-target-val">-</div>
     <div class="chips" id="action-chips">
       <button class="chip" data-fill="Reply for me — ">Reply for me</button>
       <button class="chip" data-fill="Chase this up with a polite follow-up">Chase it up</button>
@@ -152,81 +157,134 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 
 <!-- MAIN UI -->
 <div id="main-content">
-<div class="topbar">
-  <div class="topbar-left">
-    <div class="topbar-title">Bailey's <span>HQ</span></div>
-    <div class="live-pill"><div class="live-dot"></div>Live</div>
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-title">Bailey's <span>HQ</span></div>
+      <div class="live-pill"><div class="live-dot"></div>Live</div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-time" id="topbar-time">-</div>
+      <button class="btn-settings" id="btn-settings" title="Settings">&#9881;<span class="token-dot" id="token-dot" style="background:var(--red)"></span></button>
+    </div>
   </div>
-  <div class="topbar-time" id="topbar-time">-</div>
-</div>
 
-<div class="stats">
-  <div class="stat g"><div class="stat-num" id="s-act">0</div><div class="stat-lbl">Actioned</div></div>
-  <div class="stat r"><div class="stat-num" id="s-nb">0</div><div class="stat-lbl">Need You</div></div>
-  <div class="stat a"><div class="stat-num" id="s-mkt">0</div><div class="stat-lbl">Cleaned</div></div>
-  <div class="stat b"><div class="stat-num" id="s-runs">0</div><div class="stat-lbl">Runs</div></div>
-</div>
-
-<div class="biz-row">
-  <div class="biz plastix">
-    <div class="biz-name">Plastix</div>
-    <div class="biz-row-item"><span class="biz-k">Status</span><span class="biz-v" id="p-s">-</span></div>
-    <div class="biz-row-item"><span class="biz-k">Emails</span><span class="biz-v" id="p-e">-</span></div>
-    <div class="biz-row-item"><span class="biz-k">Next</span><span class="biz-v" id="p-n">-</span></div>
+  <div class="stats">
+    <div class="stat g"><div class="stat-num" id="s-act">0</div><div class="stat-lbl">Actioned</div></div>
+    <div class="stat r"><div class="stat-num" id="s-nb">0</div><div class="stat-lbl">Need You</div></div>
+    <div class="stat a"><div class="stat-num" id="s-mkt">0</div><div class="stat-lbl">Cleaned</div></div>
+    <div class="stat b"><div class="stat-num" id="s-runs">0</div><div class="stat-lbl">Runs</div></div>
   </div>
-  <div class="biz luma">
-    <div class="biz-name">Luma</div>
-    <div class="biz-row-item"><span class="biz-k">Status</span><span class="biz-v" id="l-s">-</span></div>
-    <div class="biz-row-item"><span class="biz-k">Emails</span><span class="biz-v" id="l-e">-</span></div>
-    <div class="biz-row-item"><span class="biz-k">Next</span><span class="biz-v" id="l-n">-</span></div>
+
+  <div class="biz-row">
+    <div class="biz plastix">
+      <div class="biz-name">Plastix</div>
+      <div class="biz-row-item"><span class="biz-k">Status</span><span class="biz-v" id="p-s">-</span></div>
+      <div class="biz-row-item"><span class="biz-k">Emails</span><span class="biz-v" id="p-e">-</span></div>
+      <div class="biz-row-item"><span class="biz-k">Next</span><span class="biz-v" id="p-n">-</span></div>
+    </div>
+    <div class="biz luma">
+      <div class="biz-name">Luma</div>
+      <div class="biz-row-item"><span class="biz-k">Status</span><span class="biz-v" id="l-s">-</span></div>
+      <div class="biz-row-item"><span class="biz-k">Emails</span><span class="biz-v" id="l-e">-</span></div>
+      <div class="biz-row-item"><span class="biz-k">Next</span><span class="biz-v" id="l-n">-</span></div>
+    </div>
+    <div class="biz lilhottie">
+      <div class="biz-name">Lil Hottie</div>
+      <div class="biz-row-item"><span class="biz-k">Status</span><span class="biz-v" id="lh-s">-</span></div>
+      <div class="biz-row-item"><span class="biz-k">Emails</span><span class="biz-v" id="lh-e">-</span></div>
+      <div class="biz-row-item"><span class="biz-k">Next</span><span class="biz-v" id="lh-n">-</span></div>
+    </div>
   </div>
-  <div class="biz lilhottie">
-    <div class="biz-name">Lil Hottie</div>
-    <div class="biz-row-item"><span class="biz-k">Status</span><span class="biz-v" id="lh-s">-</span></div>
-    <div class="biz-row-item"><span class="biz-k">Emails</span><span class="biz-v" id="lh-e">-</span></div>
-    <div class="biz-row-item"><span class="biz-k">Next</span><span class="biz-v" id="lh-n">-</span></div>
+
+  <div class="tabs" id="tab-row">
+    <div class="tab on" data-tab="needs">Needs You</div>
+    <div class="tab" data-tab="open">Open Items</div>
+    <div class="tab" data-tab="done">Actioned</div>
+    <div class="tab" data-tab="clean">Cleaned</div>
+    <div class="tab" data-tab="hist">History</div>
   </div>
-</div>
 
-<div class="tabs" id="tab-row">
-  <div class="tab on" data-tab="needs">Needs You</div>
-  <div class="tab" data-tab="open">Open Items</div>
-  <div class="tab" data-tab="done">Actioned</div>
-  <div class="tab" data-tab="clean">Cleaned</div>
-  <div class="tab" data-tab="hist">History</div>
-</div>
+  <!-- note input row always visible under tabs -->
+  <div class="note-row">
+    <input class="note-input" id="note-input" type="text" placeholder="Quick note to Claude — e.g. 'Chase Narelle for V7'"/>
+    <button class="btn-note-send" id="btn-note-send">Send &#8594;</button>
+  </div>
 
-<!-- note input row always visible under tabs -->
-<div class="note-row">
-  <input class="note-input" id="note-input" type="text" placeholder="Quick note to Claude — e.g. 'Chase Narelle for V7'"/>
-  <button class="btn-note-send" id="btn-note-send">Send &#8594;</button>
-</div>
+  <div class="pane on section" id="pane-needs">
+    <div class="section-head"><h2>Needs Your Attention</h2><span class="cnt r" id="cnt-needs">0</span></div>
+    <div class="card-list" id="list-needs"><div class="empty">Waiting for first scan...</div></div>
+  </div>
+  <div class="pane section" id="pane-open">
+    <div class="section-head"><h2>Open Items</h2><span class="cnt a" id="cnt-open">0</span></div>
+    <div id="list-open"></div>
+  </div>
+  <div class="pane section" id="pane-done">
+    <div class="section-head"><h2>Actioned This Run</h2><span class="cnt g" id="cnt-done">0</span></div>
+    <div class="card-list" id="list-done"><div class="empty">Nothing actioned yet</div></div>
+  </div>
+  <div class="pane section" id="pane-clean">
+    <div class="section-head"><h2>Marketing Moved to Deleted</h2><span class="cnt m" id="cnt-clean">0</span></div>
+    <div class="card-list" id="list-clean"><div class="empty">No marketing emails moved</div></div>
+  </div>
+  <div class="pane section" id="pane-hist">
+    <div class="section-head"><h2>Run History</h2></div>
+    <div id="list-hist"><div class="empty">No history yet</div></div>
+  </div>
 
-<div class="pane on section" id="pane-needs">
-  <div class="section-head"><h2>Needs Your Attention</h2><span class="cnt r" id="cnt-needs">0</span></div>
-  <div class="card-list" id="list-needs"><div class="empty">Waiting for first scan...</div></div>
-</div>
-<div class="pane section" id="pane-open">
-  <div class="section-head"><h2>Open Items</h2><span class="cnt a" id="cnt-open">0</span></div>
-  <div id="list-open"></div>
-</div>
-<div class="pane section" id="pane-done">
-  <div class="section-head"><h2>Actioned This Run</h2><span class="cnt g" id="cnt-done">0</span></div>
-  <div class="card-list" id="list-done"><div class="empty">Nothing actioned yet</div></div>
-</div>
-<div class="pane section" id="pane-clean">
-  <div class="section-head"><h2>Marketing Moved to Deleted</h2><span class="cnt m" id="cnt-clean">0</span></div>
-  <div class="card-list" id="list-clean"><div class="empty">No marketing emails moved</div></div>
-</div>
-<div class="pane section" id="pane-hist">
-  <div class="section-head"><h2>Run History</h2></div>
-  <div id="list-hist"><div class="empty">No history yet</div></div>
-</div>
-<div class="footer">Monitored every 15 min &middot; Run #<span id="run-num">0</span></div>
+  <div class="footer">Monitored every 15 min &middot; Run #<span id="run-num">0</span></div>
 </div>
 
 <script>
-// PIN
+// ── GITHUB DIRECT COMMAND SYSTEM (no mail app needed) ──────────────────────
+function getGHToken(){return localStorage.getItem('hq-gh-pat')||'';}
+function setGHToken(t){if(t){localStorage.setItem('hq-gh-pat',t.trim());}else{localStorage.removeItem('hq-gh-pat');}updateTokenDot();}
+function updateTokenDot(){var dot=document.getElementById('token-dot');if(dot){dot.style.background=getGHToken()?'var(--green)':'var(--red)';}}
+
+function showToast(msg,col){
+  var t=document.createElement('div');
+  t.className='hq-toast';
+  t.style.background=col==='g'?'rgba(34,197,94,.95)':'col'==='a'?'rgba(245,158,11,.95)':'rgba(239,68,68,.95)';
+  t.style.color='#fff';
+  t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(function(){t.style.opacity='0';setTimeout(function(){t.remove();},300);},2200);
+}
+
+function claudeCmd(type,title,body){
+  var tok=getGHToken();
+  if(!tok){
+    tok=prompt('One-time setup: paste your GitHub Personal Access Token.\n\nNeeds "Issues: Write" access on BAileysachr/BAileysachr.github.io.\n\nGenerate at: github.com/settings/tokens');
+    if(!tok)return;
+    setGHToken(tok);
+  }
+  var issueTitle='['+type+'] '+title.substring(0,80);
+  var issueBody=body+'\n\n---\n_Sent from Bailey HQ · '+new Date().toLocaleString('en-AU')+'_';
+  fetch('https://api.github.com/repos/BAileysachr/BAileysachr.github.io/issues',{
+    method:'POST',
+    headers:{'Authorization':'Bearer '+tok,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'},
+    body:JSON.stringify({title:issueTitle,body:issueBody,labels:['claude-command']})
+  }).then(function(r){
+    if(r.ok){showToast('Sent to Claude!','g');}
+    else{r.json().then(function(e){
+      showToast('Error: '+(e.message||r.status),'r');
+      if(r.status===401){setGHToken('');showToast('Token invalid — tap settings to reset','r');}
+    });}
+  }).catch(function(){showToast('Network error — check connection','r');});
+}
+
+// Settings button — manage token
+document.getElementById('btn-settings').addEventListener('click',function(){
+  var tok=getGHToken();
+  if(tok){
+    var choice=confirm('GitHub token is connected (green dot).\n\nOK = Reset token\nCancel = Keep it');
+    if(choice){setGHToken('');showToast('Token cleared','a');}
+  } else {
+    var newTok=prompt('Paste your GitHub Personal Access Token.\n\nNeeds Issues: Write on BAileysachr/BAileysachr.github.io.\n\nGet one at: github.com/settings/tokens');
+    if(newTok){setGHToken(newTok);showToast('Token saved!','g');}
+  }
+});
+
+// ── PIN ─────────────────────────────────────────────────────────────────────
 (function(){
   var PIN="8682",entered="";
   var ps=document.getElementById("pin-screen"),mc=document.getElementById("main-content");
@@ -254,7 +312,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   }
 })();
 
-// TABS
+// ── TABS ─────────────────────────────────────────────────────────────────────
 document.getElementById("tab-row").addEventListener("click",function(e){
   var t=e.target;while(t&&!t.getAttribute("data-tab"))t=t.parentElement;
   if(!t)return;
@@ -265,7 +323,7 @@ document.getElementById("tab-row").addEventListener("click",function(e){
   t.classList.add("on");var p=document.getElementById("pane-"+id);if(p)p.classList.add("on");
 });
 
-// ACTION MODAL
+// ── ACTION MODAL ─────────────────────────────────────────────────────────────
 var overlay=document.getElementById("action-overlay");
 var textarea=document.getElementById("action-textarea");
 var targetVal=document.getElementById("action-target-val");
@@ -275,14 +333,12 @@ function openAction(sender,subject,prefill){
   currentTarget={sender:sender,subject:subject};
   targetVal.textContent=sender+" — "+subject;
   textarea.value=prefill||"";
-  // deactivate all chips
   document.querySelectorAll(".chip").forEach(function(c){c.classList.remove("active");});
   overlay.classList.add("open");
   setTimeout(function(){textarea.focus();},300);
 }
 function closeAction(){overlay.classList.remove("open");}
 
-// chips
 document.getElementById("action-chips").addEventListener("click",function(e){
   var chip=e.target.closest(".chip");if(!chip)return;
   var fill=chip.getAttribute("data-fill");
@@ -294,38 +350,32 @@ document.getElementById("action-chips").addEventListener("click",function(e){
   var end=textarea.value.length;textarea.setSelectionRange(end,end);
 });
 
-// send
 document.getElementById("btn-send-claude").addEventListener("click",function(){
-  var instr=textarea.value.trim();
-  if(!instr)return;
-  var subj=encodeURIComponent("[CLAUDE ACTION] "+currentTarget.subject);
-  var body=encodeURIComponent(
-    "INSTRUCTION: "+instr+
-    "\n\nTARGET EMAIL:\nSender: "+currentTarget.sender+
-    "\nSubject: "+currentTarget.subject+
-    "\n\n(Sent from Bailey HQ dashboard — action on next run)"
+  var instr=textarea.value.trim();if(!instr)return;
+  claudeCmd(
+    'CLAUDE ACTION',
+    currentTarget.subject,
+    'INSTRUCTION: '+instr+'\n\nTARGET EMAIL:\nSender: '+currentTarget.sender+'\nSubject: '+currentTarget.subject+'\n\n(Sent from Bailey HQ dashboard)'
   );
-  window.location.href="mailto:Bailey@plastix.com.au?subject="+subj+"&body="+body;
   closeAction();
 });
+
 document.getElementById("btn-cancel-action").addEventListener("touchend",function(e){e.preventDefault();closeAction();},{passive:false});
 document.getElementById("btn-cancel-action").addEventListener("click",closeAction);
 overlay.addEventListener("click",function(e){if(e.target===overlay)closeAction();});
 
-// quick note row
+// ── QUICK NOTE ───────────────────────────────────────────────────────────────
 document.getElementById("btn-note-send").addEventListener("click",sendNote);
 document.getElementById("note-input").addEventListener("keydown",function(e){if(e.key==="Enter")sendNote();});
 document.getElementById("btn-note-send").addEventListener("touchend",function(e){e.preventDefault();sendNote();},{passive:false});
+
 function sendNote(){
-  var txt=document.getElementById("note-input").value.trim();
-  if(!txt)return;
-  var subj=encodeURIComponent("[CLAUDE NOTE] "+txt.substring(0,60));
-  var body=encodeURIComponent("NOTE FOR CLAUDE:\n\n"+txt+"\n\n(Sent from Bailey HQ dashboard)");
-  window.location.href="mailto:Bailey@plastix.com.au?subject="+subj+"&body="+body;
+  var txt=document.getElementById("note-input").value.trim();if(!txt)return;
+  claudeCmd('CLAUDE NOTE',txt.substring(0,60),'NOTE FOR CLAUDE:\n\n'+txt+'\n\n(Sent from Bailey HQ dashboard)');
   document.getElementById("note-input").value="";
 }
 
-// DASHBOARD DATA
+// ── DASHBOARD DATA ────────────────────────────────────────────────────────────
 (function(){
   function h(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
   function ta(iso){if(!iso)return"-";var d=Math.round((Date.now()-new Date(iso))/60000);if(d<1)return"just now";if(d<60)return d+"m ago";return Math.floor(d/60)+"h "+(d%60)+"m ago";}
@@ -412,33 +462,27 @@ function sendNote(){
   var hist=d.history||[];
   document.getElementById("list-hist").innerHTML=hist.length?hist.slice().reverse().map(hr).join(""):"<div class='empty'>No history yet</div>";
 
-  // wire Action / Done buttons via delegation
+  // Action / Done buttons
   document.getElementById("list-needs").addEventListener("click",function(e){
     var btn=e.target.closest(".btn-action");if(!btn)return;
     var sender=btn.getAttribute("data-sender");
     var subject=btn.getAttribute("data-subject");
     if(btn.getAttribute("data-done")==="1"){
-      // Mark done
-      var subj=encodeURIComponent("[CLAUDE DONE] "+subject);
-      var body=encodeURIComponent("Mark this as done - already handled.\n\nSender: "+sender+"\nSubject: "+subject);
-      window.location.href="mailto:Bailey@plastix.com.au?subject="+subj+"&body="+body;
+      claudeCmd('CLAUDE DONE',subject,'Mark this as done - already handled.\n\nSender: '+sender+'\nSubject: '+subject);
     } else {
       openAction(sender,subject,"");
     }
   });
-
   document.getElementById("list-needs").addEventListener("touchend",function(e){
     var btn=e.target.closest(".btn-action");if(!btn)return;
     e.preventDefault();btn.click();
   },{passive:false});
 
-  // wire Open Items done buttons
+  // Open Items done buttons
   document.getElementById("list-open").addEventListener("click",function(e){
     var btn=e.target.closest(".btn-done-tick");if(!btn)return;
     var task=btn.getAttribute("data-task");
-    var subj=encodeURIComponent("[CLAUDE DONE] "+task.substring(0,60));
-    var body=encodeURIComponent("Mark this open item as complete:\n\n"+task+"\n\n(Sent from Bailey HQ dashboard)");
-    window.location.href="mailto:Bailey@plastix.com.au?subject="+subj+"&body="+body;
+    claudeCmd('CLAUDE DONE',task.substring(0,60),'Mark this open item as complete:\n\n'+task+'\n\n(Sent from Bailey HQ dashboard)');
   });
   document.getElementById("list-open").addEventListener("touchend",function(e){
     var btn=e.target.closest(".btn-done-tick");if(!btn)return;
@@ -447,6 +491,8 @@ function sendNote(){
 
   setTimeout(function(){location.reload();},15*60*1000);
 })();
+
+// Init token dot on load
+updateTokenDot();
 </script>
 </body>
-</html>
