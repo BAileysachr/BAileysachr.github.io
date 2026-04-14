@@ -202,6 +202,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <div class="tab" data-tab="done">Actioned</div>
     <div class="tab" data-tab="clean">Cleaned</div>
     <div class="tab" data-tab="drafts">Drafts</div>
+    <div class="tab" data-tab="vault">Vault</div>
     <div class="tab" data-tab="hist">History</div>
   </div>
 
@@ -228,6 +229,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <div class="card-list" id="list-clean"><div class="empty">No marketing emails moved</div></div>
   </div>
   <div class="pane section" id="pane-drafts"><div id="drafts-root"><div class="empty" style="opacity:.6;padding:24px;text-align:center">Loading drafts...</div></div></div>
+  <div class="pane section" id="pane-vault"><div id="vault-root"><div class="empty" style="opacity:.6;padding:24px;text-align:center">Loading vault...</div></div></div>
   <div class="pane section" id="pane-hist">
     <div class="section-head"><h2>Run History</h2></div>
     <div id="list-hist"><div class="empty">No history yet</div></div>
@@ -502,4 +504,5 @@ function sendNote(){
 updateTokenDot();
 </script>
 <script src="drafts-tab.js" defer></script>
+<script src="vault-tab.js" defer></script>
 </body>
