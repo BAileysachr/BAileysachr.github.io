@@ -1,5 +1,9 @@
-// Bailey HQ service worker — push + notification handling
-self.addEventListener('install', (e) => self.skipWaiting());
+// Bailey HQ service worker — push + notification handling.
+// renotify:false means same-tag pushes silently REPLACE prior notification
+// instead of buzzing again. Backend tags each push by `draft-${id}` so the
+// same draft never re-buzzes.
+
+self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
 
 self.addEventListener('push', (event) => {
@@ -8,13 +12,15 @@ self.addEventListener('push', (event) => {
     data = { title: 'Bailey HQ', body: event.data ? event.data.text() : '' };
   }
   const title = data.title || 'Bailey HQ';
+  const tag = data.tag || (data.issueNumber ? `draft-${data.issueNumber}` : 'bailey-hq');
   const opts = {
     body: data.body || '',
     icon: data.icon || '/icon-192.png',
     badge: data.badge || '/icon-192.png',
-    tag: data.tag || 'bailey-hq',
-    renotify: true,
-    data: { url: data.url || '/' },
+    tag,
+    renotify: false,            // do NOT re-buzz for same tag
+    requireInteraction: false,  // auto-dismiss after a few seconds
+    data: { url: data.url || '/', issueNumber: data.issueNumber || null },
   };
   event.waitUntil(self.registration.showNotification(title, opts));
 });
