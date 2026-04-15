@@ -9,6 +9,15 @@
 > **STEP 3:** Update this file at the end of every session or after every significant action, decisions made, context learned, businesses discussed, actions taken, open items. Never summarise or cut things short. Never leave anything out. This is your brain, treat it that way.
 >
 > **STEP 4:** Also read `Claude Memory/README.md` and the relevant subfolder (`Projects/`, `Skills/`, `Feedback/`, `Decisions/`). That folder is Claude's evolving second brain, co-located with this vault. Write to it after every action, not only to this file.
+>
+> **STEP 5 — UNIVERSAL OPERATING PROTOCOL (Bailey's hard rule):**
+> Before ANY action, on ANY project:
+> 1. **Read `Claude Memory/Universal/operating-protocol.md`** — the universal rules of how Claude works for Bailey.
+> 2. **Read the relevant `Claude Memory/Feedback/*.md`** files for the domain you're touching (dashboard work → `dashboard-lessons.md`; emails → `email-voice.md`; etc).
+> 3. **Trace end-to-end before writing code.** Map button → handler → API → backend → result. If you can't trace it, read the source until you can.
+> 4. **Verify before assuming.** If you think a route/function/file works a certain way, OPEN IT. Don't guess.
+> 5. **Never make the same mistake twice.** Every mistake gets written into `Claude Memory/Feedback/` AND mined for the underlying skill, which goes into `Claude Memory/Skills/`.
+> 6. **After every action**, append a one-line entry to `Claude Memory/Decisions/log.md` with date + what + why.
 
 ---
 
