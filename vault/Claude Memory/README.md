@@ -19,6 +19,8 @@ This folder is Claude's persistent memory, co-located with the Obsidian vault so
 
 ## Index
 
+- **Universal (read first, every session, every project)**
+  - [Operating Protocol](Universal/operating-protocol.md) — pre-action checklist, working principles, toolchain
 - Projects
   - [bailey-email-ai](Projects/bailey-email-ai.md)
 - Skills
