@@ -534,6 +534,19 @@ var PUSH_API='https://bailey-email-ai-production.up.railway.app';
 function urlBase64ToUint8Array(b){var p='='.repeat((4-b.length%4)%4);var s=(b+p).replace(/-/g,'+').replace(/_/g,'/');var raw=atob(s);var out=new Uint8Array(raw.length);for(var i=0;i<raw.length;i++)out[i]=raw.charCodeAt(i);return out;}
 function isIOS(){return /iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;}
 function isStandalone(){return window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;}
+// Big in-page banner: when on iPhone Safari and not yet installed as PWA,
+// guide Bailey through "Add to Home Screen" without him having to read instructions elsewhere.
+(function showIosInstallBanner(){
+  if(!isIOS()||isStandalone())return;
+  if(localStorage.getItem('hq-ios-banner-dismissed')==='1')return;
+  var b=document.createElement('div');
+  b.style.cssText='position:fixed;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom));background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;padding:14px 16px;border-radius:14px;font-size:14px;line-height:1.4;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,.35);font-family:-apple-system,BlinkMacSystemFont,sans-serif';
+  b.innerHTML='<div style="font-weight:700;margin-bottom:4px">Install Bailey HQ on your home screen</div>'+
+    '<div style="opacity:.95">Tap <span style="display:inline-block;width:18px;height:18px;background:#fff;color:#16a34a;border-radius:4px;text-align:center;font-weight:700;line-height:18px">&#8682;</span> Share, then <b>Add to Home Screen</b>. Then open it from the icon to enable push notifications.</div>'+
+    '<button id="ios-banner-x" style="position:absolute;top:6px;right:8px;background:none;border:none;color:#fff;font-size:18px;cursor:pointer;opacity:.8">&times;</button>';
+  document.body.appendChild(b);
+  document.getElementById('ios-banner-x').addEventListener('click',function(){localStorage.setItem('hq-ios-banner-dismissed','1');b.remove();});
+})();
 async function enablePush(){
   try{
     if(isIOS()&&!isStandalone()){
