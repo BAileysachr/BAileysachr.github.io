@@ -211,6 +211,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <div class="tab" data-tab="open">Open Items</div>
     <div class="tab" data-tab="done">Actioned</div>
     <div class="tab" data-tab="clean">Cleaned</div>
+    <div class="tab" data-tab="subs">Subs</div>
+    <div class="tab" data-tab="msgs">Messages</div>
     <div class="tab" data-tab="vault">Vault</div>
     <div class="tab" data-tab="hist">History</div>
   </div>
@@ -238,6 +240,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <div class="card-list" id="list-clean"><div class="empty">No marketing emails moved</div></div>
   </div>
   <div class="pane section" id="pane-drafts"><div id="drafts-root"><div class="empty" style="opacity:.6;padding:24px;text-align:center">Loading drafts...</div></div></div>
+  <div class="pane section" id="pane-subs"><div id="subs-root"><div class="empty" style="opacity:.6;padding:24px;text-align:center">Tap to load subscriptions...</div></div></div>
+  <div class="pane section" id="pane-msgs"><div id="msgs-root"><div class="empty" style="opacity:.6;padding:24px;text-align:center">Tap to load messages...</div></div></div>
   <div class="pane section" id="pane-vault"><div id="vault-root"><div class="empty" style="opacity:.6;padding:24px;text-align:center">Loading vault...</div></div></div>
   <div class="pane section" id="pane-hist">
     <div class="section-head"><h2>Run History</h2></div>
@@ -350,7 +354,80 @@ document.getElementById("tab-row").addEventListener("click",function(e){
   for(var i=0;i<ts.length;i++)ts[i].classList.remove("on");
   for(var i=0;i<ps.length;i++)ps[i].classList.remove("on");
   t.classList.add("on");var p=document.getElementById("pane-"+id);if(p)p.classList.add("on");
+  if(id==='subs')loadSubs();
+  if(id==='msgs')loadMessages();
 });
+
+// ── SUBSCRIPTIONS TAB ────────────────────────────────────────────────────────
+function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function loadSubs(){
+  var root=document.getElementById('subs-root');
+  root.innerHTML='<div class="empty" style="opacity:.6;padding:24px;text-align:center">Loading...</div>';
+  hqApi('/api/subscriptions').then(function(r){return r.json();}).then(function(j){
+    if(!j.ok){root.innerHTML='<div class="empty" style="color:var(--red);padding:24px">Error: '+esc(j.err||'')+'</div>';return;}
+    if(!j.count){root.innerHTML='<div class="empty" style="opacity:.6;padding:24px;text-align:center">No subscription emails. Inbox clean.</div>';return;}
+    var bulkBtn='<div style="padding:12px 14px;border-bottom:1px solid #222"><button id="btn-cleanall" style="width:100%;padding:14px;background:#7a1f1f;color:#fff;border:0;border-radius:10px;font-weight:600">Junk all '+j.count+'</button></div>';
+    var html=bulkBtn+j.subscriptions.map(function(s){
+      var sender=esc(s.sender_name||s.sender_email||'unknown');
+      var subj=esc((s.subject||'').slice(0,80));
+      var preview=esc((s.body_preview||'').slice(0,140));
+      var hasUnsub=s.list_unsubscribe?'<span style="font-size:11px;color:var(--green);margin-left:8px">unsub link</span>':'';
+      return '<div class="card" data-id="'+esc(s.id)+'" style="padding:14px;border-bottom:1px solid #222">'
+        +'<div style="font-weight:600">'+sender+hasUnsub+'</div>'
+        +'<div style="font-size:13px;opacity:.85;margin-top:4px">'+subj+'</div>'
+        +'<div style="font-size:12px;opacity:.55;margin-top:6px">'+preview+'</div>'
+        +'<div style="display:flex;gap:8px;margin-top:10px">'
+        +'<button data-act="junk" style="flex:1;padding:10px;background:#5a1a1a;color:#fff;border:0;border-radius:8px">Junk</button>'
+        +'<button data-act="unsub" style="flex:1;padding:10px;background:#1f3a5a;color:#fff;border:0;border-radius:8px">Unsub</button>'
+        +'<button data-act="keep" style="flex:1;padding:10px;background:#1f5a3a;color:#fff;border:0;border-radius:8px">Keep</button>'
+        +'</div></div>';
+    }).join('');
+    root.innerHTML=html;
+    var clean=document.getElementById('btn-cleanall');
+    if(clean)clean.addEventListener('click',function(){
+      if(!confirm('Junk all '+j.count+' subscriptions?'))return;
+      clean.disabled=true;clean.textContent='Cleaning...';
+      hqApi('/api/commands/quick',{method:'POST',body:JSON.stringify({text:'cleanall'})})
+        .then(function(r){return r.json();}).then(function(jj){showToast(jj.reply||'done','g');loadSubs();});
+    });
+    root.querySelectorAll('.card').forEach(function(card){
+      card.querySelectorAll('button[data-act]').forEach(function(btn){
+        btn.addEventListener('click',function(){
+          var id=card.getAttribute('data-id');
+          var act=btn.getAttribute('data-act');
+          var route='/api/subscriptions/'+id+'/'+(act==='unsub'?'unsubscribe':act);
+          btn.disabled=true;btn.textContent='...';
+          hqApi(route,{method:'POST'}).then(function(r){return r.json();}).then(function(jj){
+            if(jj.ok){showToast(act+' done','g');fadeRemove(card);}
+            else{showToast('Error: '+(jj.err||''),'r');btn.disabled=false;btn.textContent=act;}
+          }).catch(function(){showToast('Network error','r');btn.disabled=false;btn.textContent=act;});
+        });
+      });
+    });
+  }).catch(function(){root.innerHTML='<div class="empty" style="color:var(--red);padding:24px">Network error</div>';});
+}
+
+// ── MESSAGES TAB ────────────────────────────────────────────────────────────
+function loadMessages(){
+  var root=document.getElementById('msgs-root');
+  root.innerHTML='<div class="empty" style="opacity:.6;padding:24px;text-align:center">Loading...</div>';
+  hqApi('/api/messages').then(function(r){return r.json();}).then(function(j){
+    if(!j.ok){root.innerHTML='<div class="empty" style="color:var(--red);padding:24px">Error: '+esc(j.err||'')+'</div>';return;}
+    if(!j.count){root.innerHTML='<div class="empty" style="opacity:.6;padding:24px;text-align:center">No messages yet.</div>';return;}
+    var html=j.messages.map(function(m){
+      var ts=new Date(m.ts);var rel=ts.toLocaleString();
+      var chBadge=m.channel==='whatsapp'?'#1f5a3a':(m.channel==='sms'?'#1f3a5a':'#444');
+      return '<div class="card" style="padding:12px 14px;border-bottom:1px solid #222">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;opacity:.7">'
+        +'<span style="background:'+chBadge+';color:#fff;padding:2px 8px;border-radius:6px">'+esc(m.channel||'?')+'</span>'
+        +'<span>'+esc(rel)+'</span></div>'
+        +'<div style="margin-top:6px;font-weight:600">You: '+esc(m.body)+'</div>'
+        +(m.reply?'<div style="margin-top:4px;opacity:.8;font-size:13px">Claude: '+esc(m.reply)+'</div>':'')
+        +'</div>';
+    }).join('');
+    root.innerHTML=html;
+  }).catch(function(){root.innerHTML='<div class="empty" style="color:var(--red);padding:24px">Network error</div>';});
+}
 
 // ── ACTION MODAL ─────────────────────────────────────────────────────────────
 var overlay=document.getElementById("action-overlay");
@@ -398,10 +475,26 @@ document.getElementById("btn-note-send").addEventListener("click",sendNote);
 document.getElementById("note-input").addEventListener("keydown",function(e){if(e.key==="Enter")sendNote();});
 document.getElementById("btn-note-send").addEventListener("touchend",function(e){e.preventDefault();sendNote();},{passive:false});
 
+// Quick note now mirrors WhatsApp exactly — same parser, same actions.
+// "y 5" approves draft #5, "list" lists pending, "cal lunch ..." schedules,
+// "subs" lists subscriptions, "email a@b|subj|body", "junk N", "from luma", etc.
 function sendNote(){
-  var txt=document.getElementById("note-input").value.trim();if(!txt)return;
-  claudeCmd('CLAUDE NOTE',txt.substring(0,60),'NOTE FOR CLAUDE:\n\n'+txt+'\n\n(Sent from Bailey HQ dashboard)');
-  document.getElementById("note-input").value="";
+  var input=document.getElementById("note-input");
+  var txt=(input.value||"").trim();if(!txt)return;
+  var btn=document.getElementById("btn-note-send");
+  if(btn){btn.disabled=true;btn.textContent='…';}
+  hqApi('/api/commands/quick',{method:'POST',body:JSON.stringify({text:txt})})
+    .then(function(r){return r.json().catch(function(){return{ok:false,err:'bad json'};});})
+    .then(function(j){
+      if(btn){btn.disabled=false;btn.textContent='Send';}
+      if(j&&j.ok){
+        input.value="";
+        showToast(j.reply?String(j.reply).slice(0,160):'Done','g');
+      }else{
+        showToast('Error: '+((j&&j.err)||'unknown'),'r');
+      }
+    })
+    .catch(function(){if(btn){btn.disabled=false;btn.textContent='Send';}showToast('Network error','r');});
 }
 
 // ── DASHBOARD DATA ────────────────────────────────────────────────────────────
@@ -540,7 +633,7 @@ function hardReset(){
   setTimeout(function(){location.replace(location.pathname+'?cb='+Date.now());},400);
 }
 // Build version footer for verification
-(function(){var f=document.querySelector('.footer');if(f){f.innerHTML+=' · v20260415d';}})();
+(function(){var f=document.querySelector('.footer');if(f){f.innerHTML+=' · v20260415e';}})();
 
 // ── PUSH NOTIFICATIONS ─────────────────────────────────────────────────────
 var PUSH_API='https://bailey-email-ai-production.up.railway.app';
@@ -590,6 +683,6 @@ if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catc
 // Tint bell green if already enabled
 if(localStorage.getItem('hq-push-enabled')==='1'){var bn=document.getElementById('btn-notify');if(bn)bn.style.color='var(--green)';}
 </script>
-<script src="drafts-tab.js?v=20260415d" defer></script>
-<script src="vault-tab.js?v=20260415d" defer></script>
+<script src="drafts-tab.js?v=20260415e" defer></script>
+<script src="vault-tab.js?v=20260415e" defer></script>
 </body>
