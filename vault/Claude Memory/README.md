@@ -25,5 +25,6 @@ This folder is Claude's persistent memory, co-located with the Obsidian vault so
   - (seed — add as they emerge)
 - Feedback
   - [Email voice rules](Feedback/email-voice.md)
+  - [Dashboard / Drafts UI lessons](Feedback/dashboard-lessons.md) — read before touching `index.html`, `drafts-tab.js`, `vault-tab.js`, `sw.js`
 - Decisions
   - (seed)
