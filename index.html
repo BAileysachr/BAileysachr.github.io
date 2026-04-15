@@ -2,13 +2,20 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
 <title>Bailey — Command Centre</title>
+<link rel="manifest" href="/manifest.json"/>
+<meta name="theme-color" content="#0c0c10"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Bailey HQ"/>
+<link rel="apple-touch-icon" href="/icon-192.png"/>
 <style>
 :root{--bg:#0c0c10;--card:#14141b;--card2:#1c1c26;--border:#26263a;--green:#22c55e;--red:#ef4444;--amber:#f59e0b;--blue:#3b82f6;--purple:#a855f7;--pink:#ec4899;--text:#eeeef5;--muted:#7070a0;--sub:#4a4a6a}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:15px}
-body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;min-height:100dvh;padding:0 0 40px}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;min-height:100dvh;padding:env(safe-area-inset-top) env(safe-area-inset-right) calc(env(safe-area-inset-bottom) + 40px) env(safe-area-inset-left);-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;overscroll-behavior-y:contain}
 .topbar{background:var(--card);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
 .topbar-left{display:flex;align-items:center;gap:10px}
 .topbar-title{font-size:15px;font-weight:700;letter-spacing:-.2px}
@@ -241,56 +248,69 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 </div>
 
 <script>
-// ── GITHUB DIRECT COMMAND SYSTEM (no mail app needed) ──────────────────────
-function getGHToken(){return localStorage.getItem('hq-gh-pat')||'';}
-function setGHToken(t){if(t){localStorage.setItem('hq-gh-pat',t.trim());}else{localStorage.removeItem('hq-gh-pat');}updateTokenDot();}
-function updateTokenDot(){var dot=document.getElementById('token-dot');if(dot){dot.style.background=getGHToken()?'var(--green)':'var(--red)';}}
+// ── BAILEY HQ BACKEND (no GitHub PAT in browser) ───────────────────────────
+window.HQ_API_BASE='https://bailey-email-ai-production.up.railway.app';
+function hqPin(){return localStorage.getItem('hq-pin')||'8682';}
+function setHqPin(p){if(p){localStorage.setItem('hq-pin',p.trim());}else{localStorage.removeItem('hq-pin');}updateTokenDot();}
 
 function showToast(msg,col){
   var t=document.createElement('div');
   t.className='hq-toast';
-  t.style.background=col==='g'?'rgba(34,197,94,.95)':'col'==='a'?'rgba(245,158,11,.95)':'rgba(239,68,68,.95)';
+  t.style.background=col==='g'?'rgba(34,197,94,.95)':col==='a'?'rgba(245,158,11,.95)':'rgba(239,68,68,.95)';
   t.style.color='#fff';
   t.textContent=msg;
   document.body.appendChild(t);
   setTimeout(function(){t.style.opacity='0';setTimeout(function(){t.remove();},300);},2200);
 }
 
-function claudeCmd(type,title,body,onSuccess){
-  var tok=getGHToken();
-  if(!tok){
-    tok=prompt('One-time setup: paste your GitHub Personal Access Token.\n\nNeeds "Issues: Write" access on BAileysachr/BAileysachr.github.io.\n\nGenerate at: github.com/settings/tokens');
-    if(!tok)return;
-    setGHToken(tok);
+function hqApi(path,opts){
+  opts=opts||{};
+  return fetch(window.HQ_API_BASE+path,{
+    method:opts.method||'GET',
+    headers:Object.assign({'Content-Type':'application/json','X-HQ-Pin':hqPin()},opts.headers||{}),
+    body:opts.body||undefined,
+  });
+}
+
+function updateTokenDot(){
+  var dot=document.getElementById('token-dot');
+  if(!dot)return;
+  hqApi('/health').then(function(r){
+    dot.style.background=r.ok?'var(--green)':'var(--red)';
+  }).catch(function(){dot.style.background='var(--red)';});
+}
+
+// claudeCmd(type, contextLabel, body, onSuccess)
+//   Routes:
+//     CLAUDE NOTE   -> POST /api/commands/note   {text}
+//     CLAUDE DONE   -> POST /api/commands/done   {task}
+//     CLAUDE ACTION -> POST /api/commands/action {sender, subject, body}
+function claudeCmd(type,contextLabel,body,onSuccess){
+  var route='/api/commands/note';
+  var payload={text:String(body||contextLabel||'')};
+  if(type==='CLAUDE DONE'){route='/api/commands/done';payload={task:String(contextLabel||body||'')};}
+  else if(type==='CLAUDE ACTION'){
+    route='/api/commands/action';
+    var lines=String(body||'').split('\n');
+    payload={sender:String(contextLabel||''),subject:'',body:String(body||'')};
   }
-  var titleStr=(title==null?'':String(title));
-  var issueTitle='['+type+'] '+titleStr.substring(0,80);
-  var issueBody=body+'\n\n---\n_Sent from Bailey HQ · '+new Date().toLocaleString('en-AU')+'_';
-  fetch('https://api.github.com/repos/BAileysachr/bailey-email-ai/issues',{
-    method:'POST',
-    headers:{'Authorization':'Bearer '+tok,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'},
-    body:JSON.stringify({title:issueTitle,body:issueBody,labels:['claude-command']})
-  }).then(function(r){
-    if(r.ok){showToast('Sent to Claude!','g');if(onSuccess)onSuccess();}
-    else{r.json().then(function(e){
-      showToast('Error: '+(e.message||r.status),'r');
-      if(r.status===401){setGHToken('');showToast('Token invalid — tap settings to reset','r');}
-    });}
-  }).catch(function(){showToast('Network error — check connection','r');});
+  hqApi(route,{method:'POST',body:JSON.stringify(payload)})
+    .then(function(r){
+      if(r.ok){showToast('Sent to Claude!','g');if(onSuccess)onSuccess();}
+      else{r.json().then(function(e){showToast('Error: '+(e.err||r.status),'r');}).catch(function(){showToast('Error '+r.status,'r');});}
+    })
+    .catch(function(){showToast('Network error — check connection','r');});
 }
 
 function fadeRemove(el){if(!el)return;el.style.transition='opacity .25s';el.style.opacity='0';setTimeout(function(){el.remove();},260);}
 
-// Settings button — manage token
+// Settings — change PIN if needed (defaults to 8682, no setup required on phone)
 document.getElementById('btn-settings').addEventListener('click',function(){
-  var tok=getGHToken();
-  if(tok){
-    var choice=confirm('GitHub token is connected (green dot).\n\nOK = Reset token\nCancel = Keep it');
-    if(choice){setGHToken('');showToast('Token cleared','a');}
-  } else {
-    var newTok=prompt('Paste your GitHub Personal Access Token.\n\nNeeds Issues: Write on BAileysachr/BAileysachr.github.io.\n\nGet one at: github.com/settings/tokens');
-    if(newTok){setGHToken(newTok);showToast('Token saved!','g');}
-  }
+  var current=hqPin();
+  var newPin=prompt('Backend PIN (currently '+(current==='8682'?'default':'set')+'). Leave blank to reset to default.',current);
+  if(newPin===null)return;
+  if(!newPin.trim())setHqPin('');else setHqPin(newPin);
+  showToast('PIN updated','g');
 });
 
 // ── PIN ─────────────────────────────────────────────────────────────────────
@@ -512,22 +532,29 @@ document.getElementById('btn-refresh').addEventListener('click',function(){locat
 // ── PUSH NOTIFICATIONS ─────────────────────────────────────────────────────
 var PUSH_API='https://bailey-email-ai-production.up.railway.app';
 function urlBase64ToUint8Array(b){var p='='.repeat((4-b.length%4)%4);var s=(b+p).replace(/-/g,'+').replace(/_/g,'/');var raw=atob(s);var out=new Uint8Array(raw.length);for(var i=0;i<raw.length;i++)out[i]=raw.charCodeAt(i);return out;}
+function isIOS(){return /iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;}
+function isStandalone(){return window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;}
 async function enablePush(){
   try{
+    if(isIOS()&&!isStandalone()){
+      alert('iPhone needs the dashboard installed first:\n\n1. Tap the Share button (square with arrow) in Safari\n2. Scroll and tap "Add to Home Screen"\n3. Open Bailey HQ from the home screen icon\n4. Tap the bell again to enable notifications');
+      return;
+    }
     if(!('serviceWorker' in navigator)||!('PushManager' in window)){showToast('Push not supported on this browser','r');return;}
     var perm=await Notification.requestPermission();
     if(perm!=='granted'){showToast('Notifications denied','r');return;}
     var reg=await navigator.serviceWorker.register('/sw.js');
     await navigator.serviceWorker.ready;
     var keyRes=await fetch(PUSH_API+'/push/vapid-public-key');
-    var keyJson=await keyRes.json();
-    var pubKey=keyJson.publicKey||keyJson.key||keyJson;
+    var pubKeyTxt=(await keyRes.text()).trim();
+    var pubKey;
+    try{var j=JSON.parse(pubKeyTxt);pubKey=j.publicKey||j.key||j;}catch(_){pubKey=pubKeyTxt;}
     var sub=await reg.pushManager.getSubscription();
     if(!sub){
       sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(pubKey)});
     }
     var r=await fetch(PUSH_API+'/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(sub)});
-    if(r.ok){showToast('Notifications enabled!','g');localStorage.setItem('hq-push-enabled','1');}
+    if(r.ok){showToast('Notifications enabled!','g');localStorage.setItem('hq-push-enabled','1');var bn=document.getElementById('btn-notify');if(bn)bn.style.color='var(--green)';}
     else{showToast('Subscribe failed: '+r.status,'r');}
   }catch(e){showToast('Push error: '+e.message,'r');}
 }
