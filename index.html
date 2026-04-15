@@ -526,8 +526,21 @@ function sendNote(){
 // Init token dot on load
 updateTokenDot();
 
-// Manual refresh button
-document.getElementById('btn-refresh').addEventListener('click',function(){location.reload();});
+// Manual refresh button — long-press for hard cache clear (iOS workaround)
+var _refreshBtn=document.getElementById('btn-refresh');
+_refreshBtn.addEventListener('click',function(){location.reload();});
+_refreshBtn.addEventListener('contextmenu',function(e){e.preventDefault();hardReset();});
+var _pressTimer=null;
+_refreshBtn.addEventListener('touchstart',function(){_pressTimer=setTimeout(hardReset,800);},{passive:true});
+_refreshBtn.addEventListener('touchend',function(){clearTimeout(_pressTimer);},{passive:true});
+function hardReset(){
+  if(!confirm('Clear all caches and reload? (Use this if the dashboard looks stuck)'))return;
+  if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});});}
+  if('caches' in window){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});}
+  setTimeout(function(){location.replace(location.pathname+'?cb='+Date.now());},400);
+}
+// Build version footer for verification
+(function(){var f=document.querySelector('.footer');if(f){f.innerHTML+=' · v20260415d';}})();
 
 // ── PUSH NOTIFICATIONS ─────────────────────────────────────────────────────
 var PUSH_API='https://bailey-email-ai-production.up.railway.app';
@@ -577,6 +590,6 @@ if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catc
 // Tint bell green if already enabled
 if(localStorage.getItem('hq-push-enabled')==='1'){var bn=document.getElementById('btn-notify');if(bn)bn.style.color='var(--green)';}
 </script>
-<script src="drafts-tab.js" defer></script>
-<script src="vault-tab.js" defer></script>
+<script src="drafts-tab.js?v=20260415d" defer></script>
+<script src="vault-tab.js?v=20260415d" defer></script>
 </body>
