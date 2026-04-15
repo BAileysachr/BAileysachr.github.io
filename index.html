@@ -164,6 +164,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     </div>
     <div class="topbar-right">
       <div class="topbar-time" id="topbar-time">-</div>
+      <button class="btn-settings" id="btn-refresh" title="Refresh now" style="font-size:14px">&#8635;</button>
+      <button class="btn-settings" id="btn-notify" title="Enable push notifications" style="font-size:14px">&#128276;</button>
       <button class="btn-settings" id="btn-settings" title="Settings">&#9881;<span class="token-dot" id="token-dot" style="background:var(--red)"></span></button>
     </div>
   </div>
@@ -198,10 +200,10 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 
   <div class="tabs" id="tab-row">
     <div class="tab on" data-tab="needs">Needs You</div>
+    <div class="tab" data-tab="drafts">Drafts</div>
     <div class="tab" data-tab="open">Open Items</div>
     <div class="tab" data-tab="done">Actioned</div>
     <div class="tab" data-tab="clean">Cleaned</div>
-    <div class="tab" data-tab="drafts">Drafts</div>
     <div class="tab" data-tab="vault">Vault</div>
     <div class="tab" data-tab="hist">History</div>
   </div>
@@ -261,9 +263,10 @@ function claudeCmd(type,title,body,onSuccess){
     if(!tok)return;
     setGHToken(tok);
   }
-  var issueTitle='['+type+'] '+title.substring(0,80);
+  var titleStr=(title==null?'':String(title));
+  var issueTitle='['+type+'] '+titleStr.substring(0,80);
   var issueBody=body+'\n\n---\n_Sent from Bailey HQ · '+new Date().toLocaleString('en-AU')+'_';
-  fetch('https://api.github.com/repos/BAileysachr/BAileysachr.github.io/issues',{
+  fetch('https://api.github.com/repos/BAileysachr/bailey-email-ai/issues',{
     method:'POST',
     headers:{'Authorization':'Bearer '+tok,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'},
     body:JSON.stringify({title:issueTitle,body:issueBody,labels:['claude-command']})
@@ -497,11 +500,42 @@ function sendNote(){
     e.preventDefault();btn.click();
   },{passive:false});
 
-  setTimeout(function(){location.reload();},15*60*1000);
+  setTimeout(function(){location.reload();},2*60*1000);
 })();
 
 // Init token dot on load
 updateTokenDot();
+
+// Manual refresh button
+document.getElementById('btn-refresh').addEventListener('click',function(){location.reload();});
+
+// ── PUSH NOTIFICATIONS ─────────────────────────────────────────────────────
+var PUSH_API='https://bailey-email-ai-production.up.railway.app';
+function urlBase64ToUint8Array(b){var p='='.repeat((4-b.length%4)%4);var s=(b+p).replace(/-/g,'+').replace(/_/g,'/');var raw=atob(s);var out=new Uint8Array(raw.length);for(var i=0;i<raw.length;i++)out[i]=raw.charCodeAt(i);return out;}
+async function enablePush(){
+  try{
+    if(!('serviceWorker' in navigator)||!('PushManager' in window)){showToast('Push not supported on this browser','r');return;}
+    var perm=await Notification.requestPermission();
+    if(perm!=='granted'){showToast('Notifications denied','r');return;}
+    var reg=await navigator.serviceWorker.register('/sw.js');
+    await navigator.serviceWorker.ready;
+    var keyRes=await fetch(PUSH_API+'/push/vapid-public-key');
+    var keyJson=await keyRes.json();
+    var pubKey=keyJson.publicKey||keyJson.key||keyJson;
+    var sub=await reg.pushManager.getSubscription();
+    if(!sub){
+      sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(pubKey)});
+    }
+    var r=await fetch(PUSH_API+'/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(sub)});
+    if(r.ok){showToast('Notifications enabled!','g');localStorage.setItem('hq-push-enabled','1');}
+    else{showToast('Subscribe failed: '+r.status,'r');}
+  }catch(e){showToast('Push error: '+e.message,'r');}
+}
+document.getElementById('btn-notify').addEventListener('click',enablePush);
+// Auto-register SW for future push
+if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(function(){});}
+// Tint bell green if already enabled
+if(localStorage.getItem('hq-push-enabled')==='1'){var bn=document.getElementById('btn-notify');if(bn)bn.style.color='var(--green)';}
 </script>
 <script src="drafts-tab.js" defer></script>
 <script src="vault-tab.js" defer></script>
