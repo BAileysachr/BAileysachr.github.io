@@ -10,7 +10,7 @@
 (function () {
   const ROOT_ID = 'drafts-root';
   const REPO = 'BAileysachr/bailey-email-ai';
-  const POLL_MS = 60_000;
+  const POLL_MS = 20_000;
   const LABEL = 'draft-pending';
 
   function getPat() {
@@ -32,9 +32,8 @@
   }
 
   async function createCommandIssue(prefix, issueNumber, body) {
-    if (typeof window.claudeCmd === 'function') {
-      return window.claudeCmd(prefix, issueNumber, body);
-    }
+    // Always post directly to the email-ai repo. Existing window.claudeCmd has a
+    // different signature and posts to the wrong repo — never use it here.
     const title = `[${prefix}] #${issueNumber}`;
     const res = await fetch(`https://api.github.com/repos/${REPO}/issues`, {
       method: 'POST',
@@ -45,7 +44,10 @@
       },
       body: JSON.stringify({ title, body: body || '', labels: ['claude-command'] }),
     });
-    if (!res.ok) throw new Error(`Create command failed: ${res.status}`);
+    if (!res.ok) {
+      const txt = await res.text().catch(() => '');
+      throw new Error(`GitHub ${res.status}: ${txt.slice(0, 160)}`);
+    }
     return res.json();
   }
 
@@ -159,11 +161,25 @@
     try {
       const issues = await ghGet(`/repos/${REPO}/issues`, { state: 'open', labels: LABEL, per_page: 50 });
       const real = issues.filter((i) => !i.pull_request);
+      // Update badge on tab
+      const tabEl = document.querySelector('.tab[data-tab="drafts"]');
+      if (tabEl) {
+        let b = tabEl.querySelector('.draft-count');
+        if (!b) { b = document.createElement('span'); b.className = 'draft-count'; tabEl.appendChild(b); }
+        b.textContent = real.length ? ` ${real.length}` : '';
+        b.style.cssText = 'background:#ef4444;color:#fff;border-radius:999px;padding:1px 7px;font-size:11px;margin-left:5px;display:' + (real.length ? 'inline-block' : 'none');
+      }
       if (!real.length) {
         root.innerHTML = '<div class="drafts-empty">No drafts waiting. Bailey, go bash some plastic.</div>';
         return;
       }
-      root.innerHTML = real.map(renderCard).join('');
+      const ts = new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      root.innerHTML = `<div style="opacity:.55;font-size:12px;margin:0 0 10px 0;display:flex;gap:8px;align-items:center">
+        <span>${real.length} draft${real.length===1?'':'s'} · updated ${ts}</span>
+        <button id="drafts-refresh" style="margin-left:auto;padding:4px 10px;border:1px solid #334;border-radius:6px;background:#111;color:#ddd;cursor:pointer">↻ Refresh</button>
+      </div>` + real.map(renderCard).join('');
+      const rb = document.getElementById('drafts-refresh');
+      if (rb) rb.addEventListener('click', refresh);
     } catch (err) {
       root.innerHTML = `<div class="drafts-empty">Load failed: ${escapeHtml(err.message)}</div>`;
     }
