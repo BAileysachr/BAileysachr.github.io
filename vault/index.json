@@ -1,11 +1,13 @@
 {
-  "generated_at": "2026-04-15T09:04:42+10:00",
+  "generated_at": "2026-04-15T12:56:45+10:00",
   "files": [
+    "Claude Memory/Feedback/dashboard-lessons.md",
     "Claude Memory/Feedback/email-voice.md",
     "Claude Memory/Projects/bailey-email-ai.md",
     "Claude Memory/README.md",
     "Claude Memory/Skills/obsidian-vault-memory.md",
     "Claude Memory/Skills/README.md",
+    "Claude Memory/Skills/vault-dashboard-sync.md",
     "CLAUDE.md"
   ]
 }
