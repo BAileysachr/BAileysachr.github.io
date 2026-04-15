@@ -584,6 +584,28 @@ function sendNote(){
   var hist=d.history||[];
   document.getElementById("list-hist").innerHTML=hist.length?hist.slice().reverse().map(hr).join(""):"<div class='empty'>No history yet</div>";
 
+  // Live overlay: pull /api/items and overwrite needsBailey/openItems with
+  // the current dismissals applied. Also refreshes businessStatus so the
+  // top business cards aren't stuck on stale baked JSON.
+  function applyLiveItems(){
+    hqApi('/api/items').then(function(r){return r.json();}).then(function(j){
+      if(!j||!j.ok)return;
+      var nb=j.needsBailey||[];
+      document.getElementById("cnt-needs").textContent=nb.length;
+      document.getElementById("list-needs").innerHTML=nb.length?nb.map(function(e){return ec(e,"r");}).join(""):"<div class='empty'>Nothing needs your attention</div>";
+      var oit=j.openItems||[];
+      document.getElementById("cnt-open").textContent=oit.length;
+      document.getElementById("list-open").innerHTML=oit.length?oit.map(oi).join(""):"<div class='empty'>No open items</div>";
+      var bs=j.businessStatus||{};
+      function bv(o,k){return o&&o[k]!=null?String(o[k]):"-";}
+      if(bs.plastix){document.getElementById("p-s").textContent=bv(bs.plastix,"status");document.getElementById("p-e").textContent=bv(bs.plastix,"openEmails");document.getElementById("p-n").textContent=bv(bs.plastix,"nextUp");}
+      if(bs.luma){document.getElementById("l-s").textContent=bv(bs.luma,"status");document.getElementById("l-e").textContent=bv(bs.luma,"openEmails");document.getElementById("l-n").textContent=bv(bs.luma,"nextUp");}
+      if(bs.lilhottie){document.getElementById("lh-s").textContent=bv(bs.lilhottie,"status");document.getElementById("lh-e").textContent=bv(bs.lilhottie,"openEmails");document.getElementById("lh-n").textContent=bv(bs.lilhottie,"nextUp");}
+    }).catch(function(){});
+  }
+  applyLiveItems();
+  setInterval(applyLiveItems,60000);
+
   // Action / Done buttons
   document.getElementById("list-needs").addEventListener("click",function(e){
     var btn=e.target.closest(".btn-action");if(!btn)return;
@@ -591,6 +613,8 @@ function sendNote(){
     var subject=btn.getAttribute("data-subject");
     if(btn.getAttribute("data-done")==="1"){
       var card=btn.closest(".ecard");
+      // Persist dismissal first so reload + cross-channel surfaces drop it.
+      hqApi('/api/items/dismiss',{method:'POST',body:JSON.stringify({sender:sender,subject:subject})}).catch(function(){});
       claudeCmd('CLAUDE DONE',subject,'Mark this as done - already handled.\n\nSender: '+sender+'\nSubject: '+subject,function(){fadeRemove(card);});
     } else {
       openAction(sender,subject,"");
@@ -606,6 +630,7 @@ function sendNote(){
     var btn=e.target.closest(".btn-done-tick");if(!btn)return;
     var task=btn.getAttribute("data-task");
     var item=btn.closest(".oitem");
+    hqApi('/api/items/dismiss',{method:'POST',body:JSON.stringify({text:task})}).catch(function(){});
     claudeCmd('CLAUDE DONE',task.substring(0,60),'Mark this open item as complete:\n\n'+task+'\n\n(Sent from Bailey HQ dashboard)',function(){fadeRemove(item);});
   });
   document.getElementById("list-open").addEventListener("touchend",function(e){
@@ -633,7 +658,7 @@ function hardReset(){
   setTimeout(function(){location.replace(location.pathname+'?cb='+Date.now());},400);
 }
 // Build version footer for verification
-(function(){var f=document.querySelector('.footer');if(f){f.innerHTML+=' · v20260415e';}})();
+(function(){var f=document.querySelector('.footer');if(f){f.innerHTML+=' · v20260415f';}})();
 
 // ── PUSH NOTIFICATIONS ─────────────────────────────────────────────────────
 var PUSH_API='https://bailey-email-ai-production.up.railway.app';
