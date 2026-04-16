@@ -111,11 +111,24 @@
   }
 
   let _refreshing = false;
-  async function refresh() {
+  async function refresh(force) {
     if (_refreshing) return;
-    _refreshing = true;
     const root = document.getElementById(ROOT_ID);
-    if (!root) { _refreshing = false; return; }
+    if (!root) return;
+
+    // NEVER refresh while Bailey is typing in an edit panel — that's
+    // what was nuking his text every 20 seconds.
+    if (!force) {
+      const openPanels = root.querySelectorAll('.draft-edit-panel[style*="display: block"], .draft-edit-panel[style*="display:block"]');
+      for (const panel of openPanels) {
+        const ta = panel.querySelector('textarea');
+        if (ta && (ta.value.trim() || document.activeElement === ta)) {
+          return; // Bailey is editing — skip this refresh cycle
+        }
+      }
+    }
+
+    _refreshing = true;
     try {
       const data = await api('/api/drafts');
       const real = data.drafts || [];
@@ -130,13 +143,37 @@
         root.innerHTML = '<div class="drafts-empty">No drafts waiting. Bailey, go bash some plastic.</div>';
         return;
       }
+      // Preserve any open edit panels + textarea content before re-render
+      const savedEdits = {};
+      root.querySelectorAll('.draft-card').forEach(function(card) {
+        var n = card.dataset.issue;
+        var panel = card.querySelector('.draft-edit-panel');
+        var ta = panel ? panel.querySelector('textarea') : null;
+        if (panel && panel.style.display !== 'none') {
+          savedEdits[n] = { open: true, text: ta ? ta.value : '' };
+        }
+      });
+
       const ts = new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       root.innerHTML = `<div style="opacity:.55;font-size:12px;margin:0 0 10px 0;display:flex;gap:8px;align-items:center">
         <span>${real.length} draft${real.length===1?'':'s'} · updated ${ts}</span>
         <button id="drafts-refresh" style="margin-left:auto;padding:4px 10px;border:1px solid #334;border-radius:6px;background:#111;color:#ddd;cursor:pointer">↻ Refresh</button>
       </div>` + real.map(renderCard).join('');
+
+      // Restore open edit panels + textarea content after re-render
+      Object.keys(savedEdits).forEach(function(n) {
+        var card = root.querySelector('.draft-card[data-issue="' + n + '"]');
+        if (!card) return;
+        var panel = card.querySelector('.draft-edit-panel');
+        var ta = panel ? panel.querySelector('textarea') : null;
+        if (panel && savedEdits[n].open) {
+          panel.style.display = 'block';
+          if (ta) ta.value = savedEdits[n].text;
+        }
+      });
+
       const rb = document.getElementById('drafts-refresh');
-      if (rb) rb.addEventListener('click', refresh);
+      if (rb) rb.addEventListener('click', function() { refresh(true); });
     } catch (err) {
       root.innerHTML = `<div class="drafts-empty">Load failed: ${escapeHtml(err.message)}<br><small>Backend: ${API}</small></div>`;
     } finally {
