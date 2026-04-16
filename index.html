@@ -227,6 +227,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <div class="tab" data-tab="open">Open Items</div>
     <div class="tab" data-tab="done">Actioned</div>
     <div class="tab" data-tab="clean">Cleaned</div>
+    <div class="tab" data-tab="tasks">Tasks</div>
     <div class="tab" data-tab="subs">Subs</div>
     <div class="tab" data-tab="msgs">Messages</div>
     <div class="tab" data-tab="jarvis">JARVIS</div>
@@ -257,6 +258,14 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <div class="card-list" id="list-clean"><div class="empty">No marketing emails moved</div></div>
   </div>
   <div class="pane section" id="pane-drafts"><div id="drafts-root"><div class="empty" style="opacity:.6;padding:24px;text-align:center">Loading drafts...</div></div></div>
+  <div class="pane section" id="pane-tasks">
+    <div class="section-head"><h2>Tasks</h2><span class="cnt a" id="cnt-tasks">0</span></div>
+    <div style="display:flex;gap:7px;margin-bottom:12px">
+      <input class="note-input" id="task-add-input" type="text" placeholder="Add task — e.g. 'Chase Joel about V7 by friday'"/>
+      <button class="btn-note-send" id="btn-task-add" style="background:var(--amber)">Add</button>
+    </div>
+    <div id="tasks-root"><div class="empty" style="opacity:.6;padding:24px;text-align:center">Tap to load tasks...</div></div>
+  </div>
   <div class="pane section" id="pane-subs"><div id="subs-root"><div class="empty" style="opacity:.6;padding:24px;text-align:center">Tap to load subscriptions...</div></div></div>
   <div class="pane section" id="pane-msgs"><div id="msgs-root"><div class="empty" style="opacity:.6;padding:24px;text-align:center">Tap to load messages...</div></div></div>
   <div class="pane section" id="pane-jarvis">
@@ -384,7 +393,84 @@ document.getElementById("tab-row").addEventListener("click",function(e){
   t.classList.add("on");var p=document.getElementById("pane-"+id);if(p)p.classList.add("on");
   if(id==='subs')loadSubs();
   if(id==='msgs')loadMessages();
+  if(id==='tasks')loadTasks();
   if(id==='jarvis')loadJarvisBriefing();
+});
+
+// ── TASKS TAB ───────────────────────────────────────────────────────────────
+function loadTasks(){
+  var root=document.getElementById('tasks-root');
+  root.innerHTML='<div class="empty" style="opacity:.6;padding:24px;text-align:center">Loading tasks...</div>';
+  hqApi('/api/tasks').then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){root.innerHTML='<div class="empty" style="color:var(--red)">Error loading tasks</div>';return;}
+    document.getElementById('cnt-tasks').textContent=j.open?j.open.length:0;
+    if(!j.open.length&&!j.done.length){root.innerHTML='<div class="empty">No tasks. Add one above or text "todo chase Joel" via WhatsApp.</div>';return;}
+    var html='';
+    if(j.open.length){
+      html+='<div style="margin-bottom:12px">';
+      j.open.forEach(function(t,i){
+        var due='';
+        if(t.due){
+          var d=new Date(t.due);var now=new Date();var diff=Math.ceil((d-now)/(24*3600*1000));
+          if(diff<0)due='<span style="color:var(--red);font-weight:700;margin-left:6px">OVERDUE</span>';
+          else if(diff===0)due='<span style="color:var(--amber);margin-left:6px">today</span>';
+          else if(diff===1)due='<span style="color:var(--amber);margin-left:6px">tomorrow</span>';
+          else due='<span style="color:var(--muted);margin-left:6px">due '+d.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'})+'</span>';
+        }
+        html+='<div class="oitem normal" data-task-id="'+t.id+'" style="margin-bottom:7px">'
+          +'<div class="odot" style="background:var(--amber)"></div>'
+          +'<div class="oitem-body"><div class="otext">'+(i+1)+'. '+esc(t.text)+due+'</div>'
+          +(t.biz?'<div class="obiz">'+esc(t.biz)+'</div>':'')
+          +'</div>'
+          +'<button class="btn-done-tick btn-task-done" data-task-id="'+t.id+'">Done</button>'
+          +'</div>';
+      });
+      html+='</div>';
+    }
+    if(j.done.length){
+      html+='<div style="opacity:.5;margin-top:8px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:6px">Completed ('+j.done.length+')</div>';
+      j.done.slice(0,5).forEach(function(t){
+        html+='<div style="font-size:12px;margin-bottom:4px;text-decoration:line-through">'+esc(t.text)+'</div>';
+      });
+      if(j.done.length>5)html+='<div style="font-size:11px;color:var(--muted)">+'+( j.done.length-5)+' more</div>';
+      html+='<button id="btn-clear-done" style="margin-top:8px;padding:8px 16px;background:var(--card2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:11px;cursor:pointer">Clear completed</button>';
+      html+='</div>';
+    }
+    root.innerHTML=html;
+    // Wire done buttons
+    root.querySelectorAll('.btn-task-done').forEach(function(btn){
+      btn.addEventListener('click',function(){
+        var id=btn.getAttribute('data-task-id');
+        btn.disabled=true;btn.textContent='...';
+        hqApi('/api/tasks/'+id+'/done',{method:'POST'}).then(function(r){return r.json();}).then(function(jj){
+          if(jj.ok){showToast('Ticked off!','g');loadTasks();}
+          else{showToast('Error','r');btn.disabled=false;btn.textContent='Done';}
+        }).catch(function(){showToast('Network error','r');btn.disabled=false;btn.textContent='Done';});
+      });
+    });
+    var clearBtn=document.getElementById('btn-clear-done');
+    if(clearBtn)clearBtn.addEventListener('click',function(){
+      hqApi('/api/tasks/clear',{method:'POST'}).then(function(r){return r.json();}).then(function(jj){
+        if(jj.ok){showToast('Cleared '+jj.removed+' tasks','g');loadTasks();}
+      });
+    });
+  }).catch(function(){root.innerHTML='<div class="empty" style="color:var(--red)">Network error</div>';});
+}
+
+document.getElementById('btn-task-add').addEventListener('click',function(){
+  var input=document.getElementById('task-add-input');
+  var txt=(input.value||'').trim();if(!txt)return;
+  var btn=document.getElementById('btn-task-add');
+  btn.disabled=true;btn.textContent='...';
+  hqApi('/api/tasks',{method:'POST',body:JSON.stringify({text:txt})})
+    .then(function(r){return r.json();}).then(function(j){
+      btn.disabled=false;btn.textContent='Add';
+      if(j&&j.ok){input.value='';showToast('Task added','g');loadTasks();}
+      else{showToast('Error: '+((j&&j.err)||''),'r');}
+    }).catch(function(){btn.disabled=false;btn.textContent='Add';showToast('Network error','r');});
+});
+document.getElementById('task-add-input').addEventListener('keydown',function(e){
+  if(e.key==='Enter')document.getElementById('btn-task-add').click();
 });
 
 // ── JARVIS TAB ──────────────────────────────────────────────────────────────
