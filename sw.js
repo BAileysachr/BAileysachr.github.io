@@ -18,9 +18,9 @@ self.addEventListener('push', (event) => {
     icon: data.icon || '/icon-192.png',
     badge: data.badge || '/icon-192.png',
     tag,
-    renotify: false,            // do NOT re-buzz for same tag
+    renotify: true,             // always buzz — Bailey needs to see these
     requireInteraction: false,  // auto-dismiss after a few seconds
-    data: { url: data.url || '/', issueNumber: data.issueNumber || null },
+    data: { url: data.url || '/', issueNumber: data.issueNumber || null, tag },
   };
   event.waitUntil(self.registration.showNotification(title, opts));
 });
