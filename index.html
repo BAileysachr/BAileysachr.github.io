@@ -170,9 +170,9 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       <button class="chip" data-fill="I'll handle this myself — mark as done">I'll handle it</button>
       <button class="chip" data-fill="Ignore this — not relevant">Ignore</button>
     </div>
-    <textarea id="action-textarea" placeholder="Type your instruction for Claude e.g. 'Reply and say we can do it, price is $350'&#10;&#10;Claude will handle it on the next run."></textarea>
+    <textarea id="action-textarea" placeholder="Type your instruction e.g. 'Reply and say we can do it, price is $350'&#10;&#10;Your boy will handle it on the next run."></textarea>
     <div class="action-btns">
-      <button class="btn-send-claude" id="btn-send-claude">Send to Claude &#8594;</button>
+      <button class="btn-send-claude" id="btn-send-claude">Send &#8594;</button>
       <button class="btn-cancel-action" id="btn-cancel-action">Cancel</button>
     </div>
   </div>
@@ -236,7 +236,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 
   <!-- note input row always visible under tabs -->
   <div class="note-row">
-    <input class="note-input" id="note-input" type="text" placeholder="Quick note to Claude — e.g. 'Chase Narelle for V7'"/>
+    <input class="note-input" id="note-input" type="text" placeholder="Quick note — e.g. 'Chase Narelle for V7'"/>
     <button class="btn-note-send" id="btn-note-send">Send &#8594;</button>
   </div>
 
@@ -312,12 +312,12 @@ function updateTokenDot(){
   }).catch(function(){dot.style.background='var(--red)';});
 }
 
-// claudeCmd(type, contextLabel, body, onSuccess)
+// hqCmd(type, contextLabel, body, onSuccess)
 //   Routes:
 //     CLAUDE NOTE   -> POST /api/commands/note   {text}
 //     CLAUDE DONE   -> POST /api/commands/done   {task}
 //     CLAUDE ACTION -> POST /api/commands/action {sender, subject, body}
-function claudeCmd(type,contextLabel,body,onSuccess){
+function hqCmd(type,contextLabel,body,onSuccess){
   var route='/api/commands/note';
   var payload={text:String(body||contextLabel||'')};
   if(type==='CLAUDE DONE'){route='/api/commands/done';payload={task:String(contextLabel||body||'')};}
@@ -328,7 +328,7 @@ function claudeCmd(type,contextLabel,body,onSuccess){
   }
   hqApi(route,{method:'POST',body:JSON.stringify(payload)})
     .then(function(r){
-      if(r.ok){showToast('Sent to Claude!','g');if(onSuccess)onSuccess();}
+      if(r.ok){showToast('Sent!','g');if(onSuccess)onSuccess();}
       else{r.json().then(function(e){showToast('Error: '+(e.err||r.status),'r');}).catch(function(){showToast('Error '+r.status,'r');});}
     })
     .catch(function(){showToast('Network error — check connection','r');});
@@ -568,7 +568,7 @@ function loadMessages(){
         +'<span style="background:'+chBadge+';color:#fff;padding:2px 8px;border-radius:6px">'+esc(m.channel||'?')+'</span>'
         +'<span>'+esc(rel)+'</span></div>'
         +'<div style="margin-top:6px;font-weight:600">You: '+esc(m.body)+'</div>'
-        +(m.reply?'<div style="margin-top:4px;opacity:.8;font-size:13px">Claude: '+esc(m.reply)+'</div>':'')
+        +(m.reply?'<div style="margin-top:4px;opacity:.8;font-size:13px">Your Boy: '+esc(m.reply)+'</div>':'')
         +'</div>';
     }).join('');
     root.innerHTML=html;
@@ -604,7 +604,7 @@ document.getElementById("action-chips").addEventListener("click",function(e){
 
 document.getElementById("btn-send-claude").addEventListener("click",function(){
   var instr=textarea.value.trim();if(!instr)return;
-  claudeCmd(
+  hqCmd(
     'CLAUDE ACTION',
     currentTarget.subject,
     'INSTRUCTION: '+instr+'\n\nTARGET EMAIL:\nSender: '+currentTarget.sender+'\nSubject: '+currentTarget.subject+'\n\n(Sent from Bailey HQ dashboard)'
@@ -761,7 +761,7 @@ function sendNote(){
       var card=btn.closest(".ecard");
       // Persist dismissal first so reload + cross-channel surfaces drop it.
       hqApi('/api/items/dismiss',{method:'POST',body:JSON.stringify({sender:sender,subject:subject})}).catch(function(){});
-      claudeCmd('CLAUDE DONE',subject,'Mark this as done - already handled.\n\nSender: '+sender+'\nSubject: '+subject,function(){fadeRemove(card);});
+      hqCmd('HQ DONE',subject,'Mark this as done - already handled.\n\nSender: '+sender+'\nSubject: '+subject,function(){fadeRemove(card);});
     } else {
       openAction(sender,subject,"");
     }
@@ -777,7 +777,7 @@ function sendNote(){
     var task=btn.getAttribute("data-task");
     var item=btn.closest(".oitem");
     hqApi('/api/items/dismiss',{method:'POST',body:JSON.stringify({text:task})}).catch(function(){});
-    claudeCmd('CLAUDE DONE',task.substring(0,60),'Mark this open item as complete:\n\n'+task+'\n\n(Sent from Bailey HQ dashboard)',function(){fadeRemove(item);});
+    hqCmd('HQ DONE',task.substring(0,60),'Mark this open item as complete:\n\n'+task+'\n\n(Sent from Bailey HQ dashboard)',function(){fadeRemove(item);});
   });
   document.getElementById("list-open").addEventListener("touchend",function(e){
     var btn=e.target.closest(".btn-done-tick");if(!btn)return;

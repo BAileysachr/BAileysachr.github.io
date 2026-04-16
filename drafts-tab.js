@@ -77,7 +77,7 @@
         <button class="draft-btn draft-reject" data-issue="${n}">Ignore</button>
       </div>
       <div class="draft-edit-panel" style="display:none">
-        <textarea placeholder="Tell Bailey's AI what to change..."></textarea>
+        <textarea placeholder="Tell your boy what to change..."></textarea>
         <button class="draft-btn draft-edit-send" data-issue="${n}">Send instruction</button>
       </div>
     </div>`;
