@@ -115,6 +115,22 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .pk.del{background:#1c1c26;color:#7070a0;font-size:20px}
 .pk.pressed,.pk:active{background:#22c55e !important;border-color:#22c55e !important;color:#fff !important}
 .footer{padding:20px 16px 0;text-align:center;font-size:10px;color:var(--sub);line-height:1.7}
+/* JARVIS */
+.jarvis-section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px}
+.jarvis-section-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--purple);margin-bottom:8px}
+.jarvis-line{font-size:12px;line-height:1.5;color:var(--text);margin-bottom:2px}
+.jarvis-line.muted{color:var(--muted);font-size:11px}
+.jarvis-line.warn{color:var(--amber)}
+.jarvis-line.good{color:var(--green)}
+.jarvis-badge{display:inline-block;font-size:9px;font-weight:700;padding:2px 6px;border-radius:6px;margin-right:4px}
+.jarvis-badge.red{background:rgba(239,68,68,.15);color:var(--red)}
+.jarvis-badge.amber{background:rgba(245,158,11,.15);color:var(--amber)}
+.jarvis-badge.green{background:rgba(34,197,94,.15);color:var(--green)}
+.jarvis-badge.purple{background:rgba(168,85,247,.15);color:var(--purple)}
+.jarvis-intel-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;border-left:3px solid var(--purple)}
+.jarvis-intel-card h3{font-size:14px;font-weight:700;margin-bottom:6px}
+.jarvis-intel-card .detail{font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:4px}
+.jarvis-intel-card .detail b{color:var(--text)}
 @media(max-width:400px){.biz-row{grid-template-columns:1fr}.stat-num{font-size:20px}}
 @media(min-width:600px){body{max-width:560px;margin:0 auto}}
 </style>
@@ -213,6 +229,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <div class="tab" data-tab="clean">Cleaned</div>
     <div class="tab" data-tab="subs">Subs</div>
     <div class="tab" data-tab="msgs">Messages</div>
+    <div class="tab" data-tab="jarvis">JARVIS</div>
     <div class="tab" data-tab="vault">Vault</div>
     <div class="tab" data-tab="hist">History</div>
   </div>
@@ -242,6 +259,17 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   <div class="pane section" id="pane-drafts"><div id="drafts-root"><div class="empty" style="opacity:.6;padding:24px;text-align:center">Loading drafts...</div></div></div>
   <div class="pane section" id="pane-subs"><div id="subs-root"><div class="empty" style="opacity:.6;padding:24px;text-align:center">Tap to load subscriptions...</div></div></div>
   <div class="pane section" id="pane-msgs"><div id="msgs-root"><div class="empty" style="opacity:.6;padding:24px;text-align:center">Tap to load messages...</div></div></div>
+  <div class="pane section" id="pane-jarvis">
+    <div class="section-head"><h2>JARVIS Intelligence</h2><span class="cnt b" id="cnt-jarvis">0</span></div>
+    <div id="jarvis-root">
+      <div style="display:flex;gap:7px;margin-bottom:12px">
+        <input class="note-input" id="jarvis-intel-input" type="text" placeholder="Who is... e.g. 'Joel' or 'joel@notjustit.com.au'"/>
+        <button class="btn-note-send" id="btn-jarvis-intel" style="background:var(--purple)">Intel</button>
+      </div>
+      <div id="jarvis-briefing"><div class="empty" style="opacity:.6;padding:24px;text-align:center">Tap to load briefing...</div></div>
+      <div id="jarvis-intel-result" style="display:none;margin-top:12px"></div>
+    </div>
+  </div>
   <div class="pane section" id="pane-vault"><div id="vault-root"><div class="empty" style="opacity:.6;padding:24px;text-align:center">Loading vault...</div></div></div>
   <div class="pane section" id="pane-hist">
     <div class="section-head"><h2>Run History</h2></div>
@@ -356,6 +384,124 @@ document.getElementById("tab-row").addEventListener("click",function(e){
   t.classList.add("on");var p=document.getElementById("pane-"+id);if(p)p.classList.add("on");
   if(id==='subs')loadSubs();
   if(id==='msgs')loadMessages();
+  if(id==='jarvis')loadJarvisBriefing();
+});
+
+// ── JARVIS TAB ──────────────────────────────────────────────────────────────
+function loadJarvisBriefing(){
+  var root=document.getElementById('jarvis-briefing');
+  root.innerHTML='<div class="empty" style="opacity:.6;padding:24px;text-align:center">Loading JARVIS briefing...</div>';
+  hqApi('/api/jarvis/briefing').then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){root.innerHTML='<div class="empty" style="color:var(--red);padding:24px">Error loading briefing</div>';return;}
+    var html='';
+    // Calendar
+    if(j.todayEvents&&j.todayEvents.length){
+      html+='<div class="jarvis-section"><div class="jarvis-section-title">Today\'s Schedule</div>';
+      j.todayEvents.forEach(function(e){html+='<div class="jarvis-line">'+esc(e)+'</div>';});
+      html+='</div>';
+    }else{
+      html+='<div class="jarvis-section"><div class="jarvis-section-title">Today\'s Schedule</div><div class="jarvis-line good">No meetings today, clear run.</div></div>';
+    }
+    // Pending drafts
+    if(j.pendingDrafts&&j.pendingDrafts.length){
+      html+='<div class="jarvis-section"><div class="jarvis-section-title"><span class="jarvis-badge red">'+j.pendingDrafts.length+'</span>Drafts Waiting</div>';
+      j.pendingDrafts.slice(0,5).forEach(function(d){
+        var e=d.emails||{};
+        html+='<div class="jarvis-line">#'+d.github_issue_number+' '+(e.business||'')+': '+(e.sender_name||e.sender_email||'').slice(0,20)+' — '+esc((e.subject||'').slice(0,40))+'</div>';
+      });
+      if(j.pendingDrafts.length>5)html+='<div class="jarvis-line muted">+'+( j.pendingDrafts.length-5)+' more</div>';
+      html+='</div>';
+    }
+    // Follow-ups
+    if(j.dueFollowUps&&j.dueFollowUps.length){
+      html+='<div class="jarvis-section"><div class="jarvis-section-title"><span class="jarvis-badge amber">'+j.dueFollowUps.length+'</span>Follow-Ups Overdue</div>';
+      j.dueFollowUps.slice(0,5).forEach(function(f){
+        var e=f.emails||{};
+        var who=e.sender_name||e.sender_email||'unknown';
+        var daysAgo=Math.floor((Date.now()-new Date(e.received_at||0).getTime())/(24*3600*1000));
+        html+='<div class="jarvis-line warn">'+esc(who)+' — "'+esc((e.subject||'').slice(0,30))+'" ('+daysAgo+'d ago, '+( f.chase_count||0)+' chases)</div>';
+      });
+      html+='</div>';
+    }
+    // Stale emails
+    if(j.staleEmails&&j.staleEmails.length){
+      html+='<div class="jarvis-section"><div class="jarvis-section-title"><span class="jarvis-badge red">'+j.staleEmails.length+'</span>Going Cold</div>';
+      j.staleEmails.slice(0,5).forEach(function(e){
+        var daysAgo=Math.floor((Date.now()-new Date(e.received_at).getTime())/(24*3600*1000));
+        html+='<div class="jarvis-line warn">'+esc(e.sender_name||e.sender_email)+' — "'+esc((e.subject||'').slice(0,30))+'" ('+daysAgo+'d)</div>';
+      });
+      html+='</div>';
+    }
+    // Yesterday
+    if(j.yesterdayTotal){
+      var bizBits=Object.entries(j.yesterdayByBiz||{}).map(function(p){return p[0]+': '+p[1];}).join(', ');
+      html+='<div class="jarvis-section"><div class="jarvis-section-title">Yesterday</div>';
+      html+='<div class="jarvis-line muted">'+j.yesterdayTotal+' emails in ('+bizBits+'), '+j.yesterdaySent+' sent out.</div></div>';
+    }
+    // Action count
+    var total=(j.pendingDrafts?j.pendingDrafts.length:0)+(j.dueFollowUps?j.dueFollowUps.length:0)+(j.staleEmails?j.staleEmails.length:0);
+    document.getElementById('cnt-jarvis').textContent=total;
+    if(!total){html+='<div class="jarvis-section"><div class="jarvis-line good">All clear, your boy\'s got everything handled.</div></div>';}
+    root.innerHTML=html;
+  }).catch(function(err){root.innerHTML='<div class="empty" style="color:var(--red);padding:24px">Network error: '+esc(err.message||'')+'</div>';});
+}
+
+function loadJarvisIntel(query){
+  var root=document.getElementById('jarvis-intel-result');
+  root.style.display='block';
+  root.innerHTML='<div class="empty" style="opacity:.6;padding:16px;text-align:center">Looking up '+esc(query)+'...</div>';
+  hqApi('/api/jarvis/intel/'+encodeURIComponent(query)).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok||!j.intel){root.innerHTML='<div class="empty">No records for "'+esc(query)+'" in your boy\'s memory.</div>';return;}
+    var c=j.intel.contact||{};
+    var html='<div class="jarvis-intel-card">';
+    html+='<h3>'+esc(c.name||c.email)+'</h3>';
+    if(c.company)html+='<div class="detail"><b>Company:</b> '+esc(c.company)+'</div>';
+    html+='<div class="detail"><b>Emails:</b> '+( c.interaction_count||0)+' received, '+(c.emails_sent_count||0)+' sent</div>';
+    html+='<div class="detail"><b>Tone:</b> '+esc(c.tone_profile||'professional')+' | <b>Biz:</b> '+esc(c.business||'?')+'</div>';
+    if(c.last_contact_at){
+      var daysAgo=Math.floor((Date.now()-new Date(c.last_contact_at).getTime())/(24*3600*1000));
+      html+='<div class="detail"><b>Last contact:</b> '+daysAgo+'d ago</div>';
+    }
+    // Recent emails
+    var recent=j.intel.recentInbound||[];
+    if(recent.length){
+      html+='<div style="margin-top:10px"><div class="jarvis-section-title">Recent Emails</div>';
+      recent.slice(0,5).forEach(function(e){
+        var date=e.received_at?new Date(e.received_at).toLocaleDateString('en-AU',{day:'numeric',month:'short'}):'?';
+        html+='<div class="jarvis-line muted">'+date+' — '+esc((e.subject||'').slice(0,50))+'</div>';
+      });
+      html+='</div>';
+    }
+    // Quotes
+    var quotes=j.intel.quotes||[];
+    if(quotes.length){
+      html+='<div style="margin-top:10px"><div class="jarvis-section-title">Past Quotes/Invoices</div>';
+      quotes.slice(0,3).forEach(function(q){
+        var date=q.doc_date?new Date(q.doc_date).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}):'?';
+        html+='<div class="jarvis-line muted">'+esc(q.doc_type||'Quote')+' '+esc(q.doc_number||'')+' ('+date+') $'+esc(q.total||'?')+'</div>';
+      });
+      html+='</div>';
+    }
+    // Patterns
+    var patterns=Array.isArray(c.patterns)?c.patterns.slice(-5):[];
+    if(patterns.length){
+      html+='<div style="margin-top:10px"><div class="jarvis-section-title">Memory Notes</div>';
+      patterns.forEach(function(p){
+        html+='<div class="jarvis-line muted">- '+esc(typeof p==='string'?p:JSON.stringify(p))+'</div>';
+      });
+      html+='</div>';
+    }
+    html+='</div>';
+    root.innerHTML=html;
+  }).catch(function(err){root.innerHTML='<div class="empty" style="color:var(--red)">Error: '+esc(err.message||'')+'</div>';});
+}
+
+document.getElementById('btn-jarvis-intel').addEventListener('click',function(){
+  var q=(document.getElementById('jarvis-intel-input').value||'').trim();
+  if(q)loadJarvisIntel(q);
+});
+document.getElementById('jarvis-intel-input').addEventListener('keydown',function(e){
+  if(e.key==='Enter'){var q=(this.value||'').trim();if(q)loadJarvisIntel(q);}
 });
 
 // ── SUBSCRIPTIONS TAB ────────────────────────────────────────────────────────
@@ -658,7 +804,7 @@ function hardReset(){
   setTimeout(function(){location.replace(location.pathname+'?cb='+Date.now());},400);
 }
 // Build version footer for verification
-(function(){var f=document.querySelector('.footer');if(f){f.innerHTML+=' · v20260415f';}})();
+(function(){var f=document.querySelector('.footer');if(f){f.innerHTML+=' · v20260416a-jarvis';}})();
 
 // ── PUSH NOTIFICATIONS ─────────────────────────────────────────────────────
 var PUSH_API='https://bailey-email-ai-production.up.railway.app';
