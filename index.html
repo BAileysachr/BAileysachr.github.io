@@ -230,7 +230,6 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <div class="tab" data-tab="tasks">Tasks</div>
     <div class="tab" data-tab="subs">Subs</div>
     <div class="tab" data-tab="msgs">Messages</div>
-    <div class="tab" data-tab="jarvis">JARVIS</div>
     <div class="tab" data-tab="vault">Vault</div>
     <div class="tab" data-tab="hist">History</div>
   </div>
@@ -242,6 +241,15 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   </div>
 
   <div class="pane on section" id="pane-needs">
+    <!-- Daily briefing (was JARVIS tab) -->
+    <div class="section-head"><h2>Your Day</h2><span class="cnt b" id="cnt-jarvis">0</span></div>
+    <div id="jarvis-briefing"><div class="empty" style="opacity:.6;padding:24px;text-align:center">Loading briefing...</div></div>
+    <div style="display:flex;gap:7px;margin:10px 0 14px">
+      <input class="note-input" id="jarvis-intel-input" type="text" placeholder="Look up a contact — e.g. 'Joel' or 'joel@notjustit.com.au'"/>
+      <button class="btn-note-send" id="btn-jarvis-intel" style="background:var(--purple)">Intel</button>
+    </div>
+    <div id="jarvis-intel-result" style="display:none;margin-bottom:14px"></div>
+
     <div class="section-head"><h2>Needs Your Attention</h2><span class="cnt r" id="cnt-needs">0</span></div>
     <div class="card-list" id="list-needs"><div class="empty">Waiting for first scan...</div></div>
   </div>
@@ -268,17 +276,6 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   </div>
   <div class="pane section" id="pane-subs"><div id="subs-root"><div class="empty" style="opacity:.6;padding:24px;text-align:center">Tap to load subscriptions...</div></div></div>
   <div class="pane section" id="pane-msgs"><div id="msgs-root"><div class="empty" style="opacity:.6;padding:24px;text-align:center">Tap to load messages...</div></div></div>
-  <div class="pane section" id="pane-jarvis">
-    <div class="section-head"><h2>JARVIS Intelligence</h2><span class="cnt b" id="cnt-jarvis">0</span></div>
-    <div id="jarvis-root">
-      <div style="display:flex;gap:7px;margin-bottom:12px">
-        <input class="note-input" id="jarvis-intel-input" type="text" placeholder="Who is... e.g. 'Joel' or 'joel@notjustit.com.au'"/>
-        <button class="btn-note-send" id="btn-jarvis-intel" style="background:var(--purple)">Intel</button>
-      </div>
-      <div id="jarvis-briefing"><div class="empty" style="opacity:.6;padding:24px;text-align:center">Tap to load briefing...</div></div>
-      <div id="jarvis-intel-result" style="display:none;margin-top:12px"></div>
-    </div>
-  </div>
   <div class="pane section" id="pane-vault"><div id="vault-root"><div class="empty" style="opacity:.6;padding:24px;text-align:center">Loading vault...</div></div></div>
   <div class="pane section" id="pane-hist">
     <div class="section-head"><h2>Run History</h2></div>
@@ -394,7 +391,6 @@ document.getElementById("tab-row").addEventListener("click",function(e){
   if(id==='subs')loadSubs();
   if(id==='msgs')loadMessages();
   if(id==='tasks')loadTasks();
-  if(id==='jarvis')loadJarvisBriefing();
 });
 
 // ── TASKS TAB ───────────────────────────────────────────────────────────────
@@ -873,8 +869,9 @@ function sendNote(){
   setTimeout(function(){location.reload();},2*60*1000);
 })();
 
-// Init token dot on load
+// Init token dot on load + auto-load daily briefing on home screen
 updateTokenDot();
+loadJarvisBriefing();
 
 // Manual refresh button — long-press for hard cache clear (iOS workaround)
 var _refreshBtn=document.getElementById('btn-refresh');
@@ -890,7 +887,7 @@ function hardReset(){
   setTimeout(function(){location.replace(location.pathname+'?cb='+Date.now());},400);
 }
 // Build version footer for verification
-(function(){var f=document.querySelector('.footer');if(f){f.innerHTML+=' · v20260416a-jarvis';}})();
+(function(){var f=document.querySelector('.footer');if(f){f.innerHTML+=' · v20260423a-home';}})();
 
 // ── PUSH NOTIFICATIONS ─────────────────────────────────────────────────────
 var PUSH_API='https://bailey-email-ai-production.up.railway.app';
