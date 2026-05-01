@@ -394,6 +394,7 @@ document.getElementById("tab-row").addEventListener("click",function(e){
   if(id==='msgs')loadMessages();
   if(id==='tasks')loadTasks();
   if(id==='done')loadActioned();
+  if(id==='clean'||id==='open'||id==='needs')applyLiveItems();
 });
 
 // ── ACTIONED TAB ────────────────────────────────────────────────────────────
@@ -900,6 +901,20 @@ function sendNote(){
       if(bs.plastix){document.getElementById("p-s").textContent=bv(bs.plastix,"status");document.getElementById("p-e").textContent=bv(bs.plastix,"openEmails");document.getElementById("p-n").textContent=bv(bs.plastix,"nextUp");}
       if(bs.luma){document.getElementById("l-s").textContent=bv(bs.luma,"status");document.getElementById("l-e").textContent=bv(bs.luma,"openEmails");document.getElementById("l-n").textContent=bv(bs.luma,"nextUp");}
       if(bs.lilhottie){document.getElementById("lh-s").textContent=bv(bs.lilhottie,"status");document.getElementById("lh-e").textContent=bv(bs.lilhottie,"openEmails");document.getElementById("lh-n").textContent=bv(bs.lilhottie,"nextUp");}
+      // Cleaned tab — show live junk-moved count
+      var cl=j.cleaned||[];
+      var cntC=document.getElementById("cnt-clean");
+      if(cntC)cntC.textContent=cl.length;
+      var listC=document.getElementById("list-clean");
+      if(listC)listC.innerHTML=cl.length?cl.map(function(e){return ec(e,"m");}).join(""):"<div class='empty'>No marketing emails moved</div>";
+      // Top stats counters
+      var actCount=(j.actioned||[]).length, nbCount=(j.needsBailey||[]).length, mktCount=cl.length;
+      var sAct=document.getElementById("s-act"); if(sAct)sAct.textContent=actCount;
+      var sNb=document.getElementById("s-nb"); if(sNb)sNb.textContent=nbCount;
+      var sMkt=document.getElementById("s-mkt"); if(sMkt)sMkt.textContent=mktCount;
+      // Topbar timestamp — show that data is live, not stale
+      var tt2=document.getElementById("topbar-time");
+      if(tt2)tt2.textContent="Updated just now";
     }).catch(function(){});
   }
   applyLiveItems();
