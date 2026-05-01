@@ -258,8 +258,8 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <div id="list-open"></div>
   </div>
   <div class="pane section" id="pane-done">
-    <div class="section-head"><h2>Actioned This Run</h2><span class="cnt g" id="cnt-done">0</span></div>
-    <div class="card-list" id="list-done"><div class="empty">Nothing actioned yet</div></div>
+    <div class="section-head"><h2>Actioned</h2><span class="cnt g" id="cnt-done">0</span></div>
+    <div class="card-list" id="list-done"><div class="empty">Loading actions…</div></div>
   </div>
   <div class="pane section" id="pane-clean">
     <div class="section-head"><h2>Marketing Moved to Deleted</h2><span class="cnt m" id="cnt-clean">0</span></div>
@@ -391,7 +391,52 @@ document.getElementById("tab-row").addEventListener("click",function(e){
   if(id==='subs')loadSubs();
   if(id==='msgs')loadMessages();
   if(id==='tasks')loadTasks();
+  if(id==='done')loadActioned();
 });
+
+// ── ACTIONED TAB ────────────────────────────────────────────────────────────
+// Fetches recently-actioned drafts and renders one-line summaries colour-coded
+// by business: Plastix=green, Luma=red, Lil Hottie=pink. Sent vs Ignored shown
+// inline. Polls /api/actions every time the tab opens (no auto-refresh —
+// actions are write-once, list grows monotonically).
+function loadActioned(){
+  var root=document.getElementById('list-done');
+  root.innerHTML='<div class="empty" style="opacity:.6;padding:18px">Loading...</div>';
+  hqApi('/api/actions').then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){root.innerHTML='<div class="empty" style="color:var(--red)">Error loading actions</div>';return;}
+    document.getElementById('cnt-done').textContent=j.count||0;
+    if(!j.actions.length){root.innerHTML='<div class="empty">Nothing actioned yet</div>';return;}
+    var bizColor={plastix:'var(--green)', luma:'#D91E24', lilhottie:'var(--pink)'};
+    var html=j.actions.map(function(a){
+      var c=bizColor[(a.business||'').toLowerCase()]||'var(--muted)';
+      var ago=a.ts?_fmtAgo(new Date(a.ts)):'';
+      var verb=a.status==='sent'?'Sent ✓':'Ignored ✗';
+      var verbCol=a.status==='sent'?'var(--green)':'var(--muted)';
+      return '<div class="action-row" style="background:var(--card);border:1px solid var(--border);border-left:3px solid '+c+';border-radius:10px;padding:10px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;gap:8px">'
+        +'<div style="flex:1;min-width:0">'
+          +'<div style="font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Email to '+esc(a.recipient)+'</div>'
+          +(a.subject?'<div style="font-size:11px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(a.subject)+'</div>':'')
+        +'</div>'
+        +'<div style="text-align:right;flex-shrink:0">'
+          +'<div style="font-size:11px;font-weight:700;color:'+verbCol+'">'+verb+'</div>'
+          +'<div style="font-size:10px;color:var(--muted)">'+ago+'</div>'
+        +'</div>'
+      +'</div>';
+    }).join('');
+    root.innerHTML=html;
+  }).catch(function(){root.innerHTML='<div class="empty" style="color:var(--red)">Network error</div>';});
+}
+
+// Small helper: humanise "X minutes ago" style timestamps
+function _fmtAgo(d){
+  var ms=Date.now()-d.getTime();
+  var s=Math.floor(ms/1000);
+  if(s<60)return 'just now';
+  var m=Math.floor(s/60);if(m<60)return m+'m ago';
+  var h=Math.floor(m/60);if(h<24)return h+'h ago';
+  var dd=Math.floor(h/24);if(dd<7)return dd+'d ago';
+  return d.toLocaleDateString('en-AU',{day:'numeric',month:'short'});
+}
 
 // ── TASKS TAB ───────────────────────────────────────────────────────────────
 function loadTasks(){

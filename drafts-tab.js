@@ -181,31 +181,83 @@
     }
   }
 
+  // Optimistic removal: fade the card out immediately on action, restore if API fails.
+  function fadeOutCard(card) {
+    if (!card) return;
+    card.style.transition = 'opacity .25s, max-height .35s, margin .25s, padding .25s';
+    card.style.maxHeight = card.offsetHeight + 'px';
+    // next frame so transition takes effect
+    requestAnimationFrame(() => {
+      card.style.opacity = '0';
+      card.style.maxHeight = '0px';
+      card.style.marginBottom = '0px';
+      card.style.paddingTop = '0px';
+      card.style.paddingBottom = '0px';
+      card.style.overflow = 'hidden';
+    });
+    setTimeout(() => { if (card.parentElement) card.remove(); }, 360);
+  }
+  function restoreCard(card) {
+    if (!card) return;
+    card.style.transition = '';
+    card.style.opacity = '';
+    card.style.maxHeight = '';
+    card.style.marginBottom = '';
+    card.style.paddingTop = '';
+    card.style.paddingBottom = '';
+    card.style.overflow = '';
+  }
+
   function bindActions() {
     document.addEventListener('click', async (ev) => {
       const t = ev.target;
       if (!(t instanceof HTMLButtonElement)) return;
       const n = parseInt(t.dataset.issue, 10);
       if (!n) return;
+      const card = t.closest('.draft-card');
+
       if (t.classList.contains('draft-approve')) {
-        t.disabled = true; t.textContent = 'Approving...';
-        try { await api(`/api/drafts/${n}/approve`, { method: 'POST', body: '{}' }); await refresh(); }
-        catch (err) { alert('Approve failed: ' + err.message); t.disabled = false; t.textContent = 'Approve'; }
+        // Optimistic: fade card immediately. Restore on failure.
+        fadeOutCard(card);
+        try {
+          await api(`/api/drafts/${n}/approve`, { method: 'POST', body: '{}' });
+          // Background refresh to sync state — the card is already gone visually
+          refresh().catch(() => {});
+        } catch (err) {
+          alert('Approve failed: ' + err.message);
+          restoreCard(card);
+          t.disabled = false; t.textContent = 'Approve';
+        }
       } else if (t.classList.contains('draft-edit')) {
-        const panel = t.closest('.draft-card').querySelector('.draft-edit-panel');
+        const panel = card.querySelector('.draft-edit-panel');
         panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
       } else if (t.classList.contains('draft-reject')) {
         if (!confirm('Reject this draft?')) return;
-        t.disabled = true;
-        try { await api(`/api/drafts/${n}/reject`, { method: 'POST', body: '{}' }); await refresh(); }
-        catch (err) { alert('Reject failed: ' + err.message); t.disabled = false; }
+        fadeOutCard(card);
+        try {
+          await api(`/api/drafts/${n}/reject`, { method: 'POST', body: '{}' });
+          refresh().catch(() => {});
+        } catch (err) {
+          alert('Reject failed: ' + err.message);
+          restoreCard(card);
+          t.disabled = false;
+        }
       } else if (t.classList.contains('draft-edit-send')) {
-        const card = t.closest('.draft-card');
         const text = card.querySelector('textarea').value.trim();
         if (!text) { alert('Type the instruction first.'); return; }
-        t.disabled = true;
-        try { await api(`/api/drafts/${n}/edit`, { method: 'POST', body: JSON.stringify({ instruction: text }) }); await refresh(); }
-        catch (err) { alert('Edit failed: ' + err.message); t.disabled = false; }
+        // Edit doesn't remove the draft (it stays pending until re-drafted by
+        // the backend), but we fade so Bailey sees feedback. Refresh will
+        // bring back the new version a few seconds later.
+        fadeOutCard(card);
+        try {
+          await api(`/api/drafts/${n}/edit`, { method: 'POST', body: JSON.stringify({ instruction: text }) });
+          // Wait a moment for the backend to regenerate before refreshing.
+          setTimeout(() => refresh(true).catch(() => {}), 1500);
+        } catch (err) {
+          alert('Edit failed: ' + err.message);
+          restoreCard(card);
+          t.disabled = false;
+        }
       }
     });
   }
