@@ -270,9 +270,9 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     </div>
     <div class="biz lilhottie">
       <div class="biz-name">Lil Hottie</div>
-      <div class="biz-row-item"><span class="biz-k">Status</span><span class="biz-v" id="lh-s">-</span></div>
-      <div class="biz-row-item"><span class="biz-k">Emails</span><span class="biz-v" id="lh-e">-</span></div>
-      <div class="biz-row-item"><span class="biz-k">Next</span><span class="biz-v" id="lh-n">-</span></div>
+      <div class="biz-row-item"><span class="biz-k">Total $</span><span class="biz-v" id="lh-total">…</span></div>
+      <div class="biz-row-item"><span class="biz-k">7d $</span><span class="biz-v" id="lh-week">…</span></div>
+      <div class="biz-row-item"><span class="biz-k">Top</span><span class="biz-v" id="lh-top">…</span></div>
     </div>
   </div>
 
@@ -1097,7 +1097,8 @@ function sendNote(){
       function bv(o,k){return o&&o[k]!=null?String(o[k]):"-";}
       if(bs.plastix){document.getElementById("p-s").textContent=bv(bs.plastix,"status");document.getElementById("p-e").textContent=bv(bs.plastix,"openEmails");document.getElementById("p-n").textContent=bv(bs.plastix,"nextUp");}
       if(bs.luma){document.getElementById("l-s").textContent=bv(bs.luma,"status");document.getElementById("l-e").textContent=bv(bs.luma,"openEmails");document.getElementById("l-n").textContent=bv(bs.luma,"nextUp");}
-      if(bs.lilhottie){document.getElementById("lh-s").textContent=bv(bs.lilhottie,"status");document.getElementById("lh-e").textContent=bv(bs.lilhottie,"openEmails");document.getElementById("lh-n").textContent=bv(bs.lilhottie,"nextUp");}
+      // Lil Hottie box now shows Shopify metrics instead of email counts
+      _loadLilHottieShopify();
       // Cleaned tab — show live junk-moved count
       var cl=j.cleaned||[];
       var cntC=document.getElementById("cnt-clean");
@@ -1155,6 +1156,32 @@ function sendNote(){
 // Init token dot on load + auto-load daily briefing on home screen
 updateTokenDot();
 loadJarvisBriefing();
+_loadLilHottieShopify();
+setInterval(_loadLilHottieShopify, 5 * 60 * 1000);
+
+// Lil Hottie Shopify metrics — total revenue, this-week vs last-week, top product.
+function _loadLilHottieShopify(){
+  hqApi('/api/shopify/lilhottie').then(function(r){return r.json();}).then(function(j){
+    var elT=document.getElementById('lh-total'), elW=document.getElementById('lh-week'), elTop=document.getElementById('lh-top');
+    if(!elT||!elW||!elTop)return;
+    if(!j||!j.ok||!j.configured){
+      elT.textContent='setup';elW.textContent='—';elTop.textContent='—';
+      elT.style.color='var(--muted)';
+      return;
+    }
+    if(j.totals){
+      elT.textContent='$'+(j.totals.total||0).toLocaleString('en-AU',{maximumFractionDigits:0});
+    }
+    if(j.recent){
+      var w=(j.recent.thisWeek?.total||0);
+      var d=j.recent.deltaPct;
+      elW.innerHTML='$'+w.toLocaleString('en-AU',{maximumFractionDigits:0})+(d!==null&&d!==undefined?' <span style="color:'+(d>=0?'var(--green)':'var(--red)')+';font-size:9px">'+(d>=0?'+':'')+d+'%</span>':'');
+    }
+    if(j.topProducts&&j.topProducts.length){
+      elTop.textContent=(j.topProducts[0].name||'').slice(0,18)+(j.topProducts[0].name.length>18?'…':'');
+    }
+  }).catch(function(){});
+}
 
 // Manual refresh button — long-press for hard cache clear (iOS workaround)
 var _refreshBtn=document.getElementById('btn-refresh');
