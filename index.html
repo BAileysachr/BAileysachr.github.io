@@ -69,12 +69,65 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .btn-done-tick{background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:11px;padding:3px 8px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;flex-shrink:0;margin-top:1px}
 .btn-done-tick:active{background:rgba(34,197,94,.15);border-color:var(--green);color:var(--green)}
 /* NOTE INPUT */
-.note-row{display:flex;gap:7px;padding:8px 16px 0;margin-top:4px;align-items:flex-end}
-.note-input{flex:1;background:var(--card2);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:14px;padding:11px 14px;outline:none;font-family:inherit;line-height:1.45;transition:border-color .15s, box-shadow .15s;resize:none;min-height:42px;max-height:240px;overflow-y:auto}
-.note-input::placeholder{color:var(--sub)}
-.note-input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,.12)}
-.btn-note-send{padding:11px 16px;background:var(--blue);border:none;border-radius:12px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;white-space:nowrap;align-self:flex-end;height:42px;min-width:64px;display:flex;align-items:center;justify-content:center;transition:opacity .12s, transform .08s}
-.btn-note-send:active{opacity:.8;transform:scale(.96)}
+/* Note bar — sticky to bottom of viewport so it's always reachable on mobile.
+   Backdrop blur so it floats over content. Respects iPhone safe-area-inset
+   so it doesn't get eaten by the home indicator. */
+.note-row{
+  position:sticky;
+  bottom:0;
+  z-index:90;
+  display:flex;
+  gap:8px;
+  padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+  margin:8px -16px 0;
+  align-items:flex-end;
+  background:rgba(12,12,16,0.85);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  border-top:1px solid var(--border);
+}
+.note-input{
+  flex:1;
+  background:var(--card2);
+  border:1px solid var(--border);
+  border-radius:14px;
+  color:var(--text);
+  font-size:16px; /* 16px prevents iOS auto-zoom on focus */
+  padding:12px 14px;
+  outline:none;
+  font-family:inherit;
+  line-height:1.4;
+  transition:border-color .15s, box-shadow .15s;
+  resize:none;
+  min-height:46px;
+  max-height:200px;
+  overflow-y:auto;
+  -webkit-appearance:none;
+}
+.note-input::placeholder{color:var(--sub);font-size:14px}
+.note-input:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,.18)}
+.btn-note-send{
+  padding:0 18px;
+  background:var(--blue);
+  border:none;
+  border-radius:14px;
+  color:#fff;
+  font-size:15px;
+  font-weight:700;
+  cursor:pointer;
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:transparent;
+  white-space:nowrap;
+  align-self:flex-end;
+  height:46px;
+  min-width:64px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition:opacity .12s, transform .08s;
+  -webkit-appearance:none;
+}
+.btn-note-send:active{opacity:.85;transform:scale(.94)}
 .btn-note-send:disabled{opacity:.45;cursor:not-allowed}
 /* TOAST */
 .hq-toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);padding:10px 20px;border-radius:20px;font-size:13px;font-weight:700;z-index:99999;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.4);transition:opacity .3s;pointer-events:none}
@@ -232,13 +285,15 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     <div class="tab" data-tab="tasks">Tasks</div>
     <div class="tab" data-tab="subs">Subs</div>
     <div class="tab" data-tab="msgs">Messages</div>
+    <div class="tab" data-tab="brainstorm">Brainstorm</div>
+    <div class="tab" data-tab="insights">Insights</div>
     <div class="tab" data-tab="vault">Vault</div>
     <div class="tab" data-tab="hist">History</div>
   </div>
 
   <!-- note input row always visible under tabs -->
   <div class="note-row">
-    <textarea class="note-input" id="note-input" rows="1" placeholder="Quick note or command — Shift+Enter for new line" autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="true"></textarea>
+    <textarea class="note-input" id="note-input" rows="1" placeholder="Quick note or command…  (mic icon for voice)" autocomplete="off" autocorrect="on" autocapitalize="sentences" spellcheck="true" enterkeyhint="send" inputmode="text"></textarea>
     <button class="btn-note-send" id="btn-note-send">Send &#8594;</button>
   </div>
 
@@ -278,6 +333,20 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   </div>
   <div class="pane section" id="pane-subs"><div id="subs-root"><div class="empty" style="opacity:.6;padding:24px;text-align:center">Tap to load subscriptions...</div></div></div>
   <div class="pane section" id="pane-msgs"><div id="msgs-root"><div class="empty" style="opacity:.6;padding:24px;text-align:center">Tap to load messages...</div></div></div>
+  <div class="pane section" id="pane-brainstorm">
+    <div class="section-head"><h2>Brainstorm — Ideas from your week</h2><span class="cnt b" id="cnt-brainstorm">0</span></div>
+    <div style="display:flex;gap:7px;margin-bottom:12px">
+      <button class="btn-note-send" id="btn-brainstorm-run" style="background:var(--purple);width:100%">↻ Generate now</button>
+    </div>
+    <div id="brainstorm-root"><div class="empty" style="opacity:.6;padding:24px;text-align:center">Loading ideas...</div></div>
+  </div>
+  <div class="pane section" id="pane-insights">
+    <div class="section-head"><h2>AI Scout — Daily Findings</h2><span class="cnt b" id="cnt-insights">0</span></div>
+    <div style="display:flex;gap:7px;margin-bottom:12px">
+      <button class="btn-note-send" id="btn-scout-run" style="background:var(--purple);width:100%">↻ Scan now</button>
+    </div>
+    <div id="insights-root"><div class="empty" style="opacity:.6;padding:24px;text-align:center">Loading findings...</div></div>
+  </div>
   <div class="pane section" id="pane-vault"><div id="vault-root"><div class="empty" style="opacity:.6;padding:24px;text-align:center">Loading vault...</div></div></div>
   <div class="pane section" id="pane-hist">
     <div class="section-head"><h2>Run History</h2></div>
@@ -395,6 +464,116 @@ document.getElementById("tab-row").addEventListener("click",function(e){
   if(id==='tasks')loadTasks();
   if(id==='done')loadActioned();
   if(id==='clean'||id==='open'||id==='needs')applyLiveItems();
+  if(id==='insights')loadInsights();
+  if(id==='brainstorm')loadBrainstorm();
+});
+
+// ── BRAINSTORM TAB ──────────────────────────────────────────────────────────
+function loadBrainstorm(){
+  var root=document.getElementById('brainstorm-root');
+  root.innerHTML='<div class="empty" style="opacity:.6;padding:18px">Loading...</div>';
+  hqApi('/api/brainstorm').then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){root.innerHTML='<div class="empty" style="color:var(--red)">Error</div>';return;}
+    document.getElementById('cnt-brainstorm').textContent=j.count||0;
+    if(!j.items.length){root.innerHTML='<div class="empty">No ideas yet. Weekly scan runs Mondays 8am Sydney. Tap "Generate now" to trigger one.</div>';return;}
+    var bizColor={plastix:'var(--green)',luma:'#D91E24',lilhottie:'var(--pink)',cross:'var(--blue)'};
+    var emojis={opportunity:'💡',revenue:'💰',friction:'⚠',operational:'⚙',team:'👥',product:'📦'};
+    var html=j.items.map(function(i){
+      var col=bizColor[(i.business||'cross').toLowerCase()]||'var(--muted)';
+      var emoji=emojis[i.category]||'•';
+      var statusCol={shipped_pending:'var(--blue)',skipped:'var(--muted)',done:'var(--green)',parked:'var(--amber)',new:'var(--text)'}[i.status]||'var(--muted)';
+      var statusLabel={shipped_pending:'Queued',skipped:'Skipped',done:'Done',parked:'Parked',new:'New'}[i.status]||i.status;
+      return '<div style="background:var(--card);border:1px solid var(--border);border-left:3px solid '+col+';border-radius:10px;padding:12px 14px;margin-bottom:8px">'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">'
+          +'<div style="flex:1;font-size:13px;font-weight:600;color:var(--text);line-height:1.4">'+emoji+' '+esc(i.headline)+'</div>'
+          +'<div style="text-align:right;font-size:10px;flex-shrink:0"><div style="font-weight:700;color:'+col+'">'+(i.business||'cross').toUpperCase()+'</div><div style="color:var(--muted)">'+(i.score||0)+'</div></div>'
+        +'</div>'
+        +(i.detail?'<div style="font-size:12px;color:var(--text);line-height:1.45;margin-bottom:6px">'+esc(i.detail)+'</div>':'')
+        +(i.evidence?'<div style="font-size:11px;color:var(--muted);line-height:1.4;margin-bottom:6px"><span style="font-weight:700">Why: </span>'+esc(i.evidence)+'</div>':'')
+        +(i.suggested_action?'<div style="font-size:11px;color:var(--blue);line-height:1.4;margin-bottom:8px"><span style="font-weight:700">Action: </span>'+esc(i.suggested_action)+'</div>':'')
+        +'<div style="display:flex;gap:6px;align-items:center">'
+          +'<span style="flex:1;font-size:10px;font-weight:700;color:'+statusCol+'">'+statusLabel+'</span>'
+          +(i.status==='new'?'<button class="btn-brain-act" data-id="'+i.id+'" data-act="shipped_pending" style="background:rgba(59,130,246,.18);border:0;color:var(--blue);font-size:11px;font-weight:700;padding:5px 10px;border-radius:6px;cursor:pointer">Ship</button><button class="btn-brain-act" data-id="'+i.id+'" data-act="parked" style="background:rgba(245,158,11,.18);border:0;color:var(--amber);font-size:11px;font-weight:700;padding:5px 10px;border-radius:6px;cursor:pointer">Park</button><button class="btn-brain-act" data-id="'+i.id+'" data-act="skipped" style="background:var(--card2);border:0;color:var(--muted);font-size:11px;font-weight:700;padding:5px 10px;border-radius:6px;cursor:pointer">Skip</button>':'')
+        +'</div>'
+      +'</div>';
+    }).join('');
+    root.innerHTML=html;
+    root.querySelectorAll('.btn-brain-act').forEach(function(btn){
+      btn.addEventListener('click',function(){
+        var id=btn.dataset.id, act=btn.dataset.act;
+        btn.disabled=true;btn.textContent='...';
+        hqApi('/api/brainstorm/'+id+'/status',{method:'POST',body:JSON.stringify({status:act})})
+          .then(function(r){return r.json();}).then(function(j){
+            if(j.ok){showToast('Marked','g');loadBrainstorm();}
+            else{showToast('Error','r');btn.disabled=false;}
+          });
+      });
+    });
+  }).catch(function(){root.innerHTML='<div class="empty" style="color:var(--red)">Network error</div>';});
+}
+
+document.getElementById('btn-brainstorm-run').addEventListener('click',function(){
+  var btn=this;btn.disabled=true;btn.textContent='Generating...';
+  hqApi('/api/brainstorm/run',{method:'POST'})
+    .then(function(r){return r.json();}).then(function(j){
+      btn.disabled=false;btn.textContent='↻ Generate now';
+      if(j&&j.ok){showToast(j.count?j.count+' ideas generated':'No ideas above threshold','g');loadBrainstorm();}
+      else{showToast('Failed: '+(j.err||'?'),'r');}
+    }).catch(function(){btn.disabled=false;btn.textContent='↻ Generate now';showToast('Network error','r');});
+});
+
+// ── INSIGHTS TAB (AI Scout findings) ────────────────────────────────────────
+function loadInsights(){
+  var root=document.getElementById('insights-root');
+  root.innerHTML='<div class="empty" style="opacity:.6;padding:18px">Loading findings...</div>';
+  hqApi('/api/scout').then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){root.innerHTML='<div class="empty" style="color:var(--red)">Error loading scout findings</div>';return;}
+    document.getElementById('cnt-insights').textContent=j.count||0;
+    if(!j.findings.length){root.innerHTML='<div class="empty">No scout findings yet. Daily scan runs at 7:30am Sydney. Tap "Scan now" to trigger one.</div>';return;}
+    var html=j.findings.map(function(f){
+      var actionable=(f.tags||[]).indexOf('actionable')>=0;
+      var statusCol={shipped_pending:'var(--blue)',skipped:'var(--muted)',done:'var(--green)',new:'var(--amber)'}[f.status]||'var(--muted)';
+      var statusLabel={shipped_pending:'Queued',skipped:'Skipped',done:'Done',new:'New'}[f.status]||(f.status||'?');
+      var date=new Date(f.found_at).toLocaleDateString('en-AU',{day:'numeric',month:'short'});
+      var score=f.relevance_score||0;
+      var scoreCol=score>=80?'var(--green)':score>=60?'var(--amber)':'var(--muted)';
+      return '<div style="background:var(--card);border:1px solid var(--border);border-left:3px solid '+(actionable?'var(--purple)':'var(--muted)')+';border-radius:10px;padding:12px 14px;margin-bottom:8px">'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">'
+          +'<div style="flex:1;font-size:13px;font-weight:600;color:var(--text);line-height:1.35">'+(actionable?'🔧 ':'👀 ')+esc(f.title)+'</div>'
+          +'<div style="text-align:right;flex-shrink:0;font-size:10px"><div style="font-weight:700;color:'+scoreCol+'">'+score+'</div><div style="color:var(--muted)">'+date+'</div></div>'
+        +'</div>'
+        +(f.hq_impact?'<div style="font-size:12px;color:var(--muted);line-height:1.45;margin-bottom:8px">'+esc(f.hq_impact)+'</div>':'')
+        +'<div style="display:flex;gap:6px;align-items:center">'
+          +(f.url?'<a href="'+esc(f.url)+'" target="_blank" rel="noopener" style="font-size:11px;color:var(--blue);text-decoration:none">Open ↗</a>':'')
+          +'<span style="flex:1"></span>'
+          +'<span style="font-size:10px;font-weight:700;color:'+statusCol+'">'+statusLabel+'</span>'
+          +(f.status==='new'?'<button class="btn-scout-act" data-id="'+f.id+'" data-act="shipped_pending" style="background:rgba(59,130,246,.18);border:0;color:var(--blue);font-size:11px;font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer">Ship</button><button class="btn-scout-act" data-id="'+f.id+'" data-act="skipped" style="background:var(--card2);border:0;color:var(--muted);font-size:11px;font-weight:700;padding:4px 9px;border-radius:6px;cursor:pointer">Skip</button>':'')
+        +'</div>'
+      +'</div>';
+    }).join('');
+    root.innerHTML=html;
+    root.querySelectorAll('.btn-scout-act').forEach(function(btn){
+      btn.addEventListener('click',function(){
+        var id=btn.dataset.id, act=btn.dataset.act;
+        btn.disabled=true;btn.textContent='...';
+        hqApi('/api/scout/'+id+'/status',{method:'POST',body:JSON.stringify({status:act})})
+          .then(function(r){return r.json();}).then(function(j){
+            if(j.ok){showToast(act==='shipped_pending'?'Queued for action':'Skipped','g');loadInsights();}
+            else{showToast('Error','r');btn.disabled=false;}
+          });
+      });
+    });
+  }).catch(function(){root.innerHTML='<div class="empty" style="color:var(--red)">Network error</div>';});
+}
+
+document.getElementById('btn-scout-run').addEventListener('click',function(){
+  var btn=this;btn.disabled=true;btn.textContent='Scanning...';
+  hqApi('/api/scout/run',{method:'POST'})
+    .then(function(r){return r.json();}).then(function(j){
+      btn.disabled=false;btn.textContent='↻ Scan now';
+      if(j&&j.ok){showToast(j.count?j.count+' new findings':'No new picks above threshold','g');loadInsights();}
+      else{showToast('Scan failed: '+(j.err||'?'),'r');}
+    }).catch(function(){btn.disabled=false;btn.textContent='↻ Scan now';showToast('Network error','r');});
 });
 
 // ── ACTIONED TAB ────────────────────────────────────────────────────────────
@@ -558,7 +737,10 @@ function loadJarvisBriefing(){
       html+='<div class="jarvis-section"><div class="jarvis-section-title"><span class="jarvis-badge red">'+j.staleEmails.length+'</span>Going Cold</div>';
       j.staleEmails.slice(0,5).forEach(function(e){
         var daysAgo=Math.floor((Date.now()-new Date(e.received_at).getTime())/(24*3600*1000));
-        html+='<div class="jarvis-line warn">'+esc(e.sender_name||e.sender_email)+' — "'+esc((e.subject||'').slice(0,30))+'" ('+daysAgo+'d)</div>';
+        html+='<div class="jarvis-line warn" style="display:flex;justify-content:space-between;align-items:center;gap:6px">'
+          +'<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(e.sender_name||e.sender_email)+' — "'+esc((e.subject||'').slice(0,30))+'" ('+daysAgo+'d)</span>'
+          +'<button class="btn-stale-dismiss" data-id="'+esc(e.id)+'" style="background:var(--card2);border:1px solid var(--border);color:var(--muted);font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;cursor:pointer;flex-shrink:0">Dismiss</button>'
+        +'</div>';
       });
       html+='</div>';
     }
@@ -573,6 +755,21 @@ function loadJarvisBriefing(){
     document.getElementById('cnt-jarvis').textContent=total;
     if(!total){html+='<div class="jarvis-section"><div class="jarvis-line good">All clear, your boy\'s got everything handled.</div></div>';}
     root.innerHTML=html;
+    // Wire dismiss buttons on Going Cold rows
+    root.querySelectorAll('.btn-stale-dismiss').forEach(function(btn){
+      btn.addEventListener('click',function(){
+        var id=btn.dataset.id;
+        btn.disabled=true;btn.textContent='...';
+        var row=btn.closest('.jarvis-line');
+        hqApi('/api/jarvis/dismiss-stale',{method:'POST',body:JSON.stringify({email_id:id})})
+          .then(function(r){return r.json();}).then(function(jj){
+            if(jj.ok){
+              if(row){row.style.transition='opacity .2s';row.style.opacity='0';setTimeout(function(){row.remove();},220);}
+              showToast('Dismissed','g');
+            }else{btn.disabled=false;btn.textContent='Dismiss';showToast('Error','r');}
+          }).catch(function(){btn.disabled=false;btn.textContent='Dismiss';});
+      });
+    });
   }).catch(function(err){root.innerHTML='<div class="empty" style="color:var(--red);padding:24px">Network error: '+esc(err.message||'')+'</div>';});
 }
 
