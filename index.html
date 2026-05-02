@@ -417,39 +417,60 @@ function hqCmd(type,contextLabel,body,onSuccess){
 
 function fadeRemove(el){if(!el)return;el.style.transition='opacity .25s';el.style.opacity='0';setTimeout(function(){el.remove();},260);}
 
-// Settings menu — long-press for advanced (PIN, hard reset). Tap = menu.
+// Settings sheet — full-width bottom sheet on mobile, easy thumb reach.
+// Each row is a big touch target with explicit pointer/click handling so
+// iOS Safari registers taps reliably.
 (function(){
   var btn=document.getElementById('btn-settings');
   if(!btn)return;
-  function openMenu(){
-    var menu=document.getElementById('settings-menu');
-    if(menu){menu.remove();return;}
-    menu=document.createElement('div');
-    menu.id='settings-menu';
-    menu.style.cssText='position:fixed;top:48px;right:12px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:6px;z-index:200;min-width:200px;box-shadow:0 8px 24px rgba(0,0,0,.5)';
-    var items=[
-      {label:'Force refresh data',fn:function(){location.reload();}},
-      {label:'Refresh Shopify',fn:function(){hqApi('/api/shopify/lilhottie?refresh=1').then(function(){_loadLilHottieShopify();showToast('Shopify refreshed','g');});}},
-      {label:'Run AI scout now',fn:function(){hqApi('/api/scout/run',{method:'POST'}).then(function(){showToast('Scout running','g');});}},
-      {label:'Run brainstorm now',fn:function(){hqApi('/api/brainstorm/run',{method:'POST'}).then(function(){showToast('Brainstorm running','g');});}},
-      {label:'Change PIN',fn:function(){var n=prompt('Set backend PIN (leave blank to reset to default 8682)',hqPin());if(n===null)return;if(!n.trim())setHqPin('');else setHqPin(n);showToast('PIN updated','g');}},
-      {label:'Clear cache + reload',fn:function(){if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});});}if('caches' in window){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});}setTimeout(function(){location.replace(location.pathname+'?cb='+Date.now());},300);}},
-    ];
-    items.forEach(function(it){
-      var b=document.createElement('button');
-      b.textContent=it.label;
-      b.style.cssText='display:block;width:100%;text-align:left;padding:10px 12px;background:none;border:0;color:var(--text);font-size:13px;cursor:pointer;border-radius:8px;font-family:inherit';
-      b.addEventListener('mouseenter',function(){b.style.background='var(--card2)';});
-      b.addEventListener('mouseleave',function(){b.style.background='none';});
-      b.addEventListener('click',function(){it.fn();menu.remove();});
-      menu.appendChild(b);
+  var ITEMS=[
+    {label:'↻ Force refresh data',fn:function(){location.reload();}},
+    {label:'🛒 Refresh Shopify',fn:function(){hqApi('/api/shopify/lilhottie?refresh=1').then(function(r){return r.json();}).then(function(){if(typeof _loadLilHottieShopify==='function')_loadLilHottieShopify();showToast('Shopify refreshed','g');});}},
+    {label:'🤖 Run AI Scout now',fn:function(){showToast('Scout running...','b');hqApi('/api/scout/run',{method:'POST'}).then(function(r){return r.json();}).then(function(j){showToast((j&&j.ok?'Scout: '+(j.count||0)+' new':'Scout failed'),(j&&j.ok)?'g':'r');});}},
+    {label:'🧠 Run Brainstorm now',fn:function(){showToast('Generating...','b');hqApi('/api/brainstorm/run',{method:'POST'}).then(function(r){return r.json();}).then(function(j){showToast((j&&j.ok?'Brainstorm: '+(j.count||0)+' ideas':'Brainstorm failed'),(j&&j.ok)?'g':'r');});}},
+    {label:'🔑 Change PIN',fn:function(){var n=prompt('Set backend PIN (blank to reset to 8682)',hqPin());if(n===null)return;if(!n.trim())setHqPin('');else setHqPin(n);showToast('PIN updated','g');}},
+    {label:'🧹 Clear cache + reload',fn:function(){if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){rs.forEach(function(r){r.unregister();});});}if('caches' in window){caches.keys().then(function(ks){ks.forEach(function(k){caches.delete(k);});});}setTimeout(function(){location.replace(location.pathname+'?cb='+Date.now());},250);}},
+  ];
+  function openSheet(){
+    var existing=document.getElementById('settings-overlay');
+    if(existing){existing.remove();return;}
+    var overlay=document.createElement('div');
+    overlay.id='settings-overlay';
+    overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;display:flex;align-items:flex-end;justify-content:center;-webkit-tap-highlight-color:transparent';
+    var sheet=document.createElement('div');
+    sheet.style.cssText='background:#14141b;border-radius:18px 18px 0 0;width:100%;max-width:520px;padding:14px 12px calc(14px + env(safe-area-inset-bottom));box-shadow:0 -8px 24px rgba(0,0,0,.5);user-select:none;-webkit-user-select:none;-webkit-touch-callout:none';
+    var handle=document.createElement('div');
+    handle.style.cssText='width:36px;height:4px;border-radius:2px;background:var(--border);margin:0 auto 14px';
+    sheet.appendChild(handle);
+    var title=document.createElement('div');
+    title.textContent='Settings';
+    title.style.cssText='font-size:15px;font-weight:700;color:var(--text);padding:0 6px 10px';
+    sheet.appendChild(title);
+    ITEMS.forEach(function(it){
+      var row=document.createElement('button');
+      row.textContent=it.label;
+      row.style.cssText='display:block;width:100%;text-align:left;padding:14px 14px;background:var(--card2);border:0;color:var(--text);font-size:15px;cursor:pointer;border-radius:10px;font-family:inherit;margin-bottom:6px;touch-action:manipulation;-webkit-tap-highlight-color:rgba(59,130,246,.2);user-select:none;-webkit-user-select:none';
+      // Use both touchend (faster on iOS) and click (fallback) — guard against double-fire.
+      var handled=false;
+      function fire(ev){if(handled)return;handled=true;ev.preventDefault();ev.stopPropagation();overlay.remove();setTimeout(function(){try{it.fn();}catch(err){showToast('Error: '+err.message,'r');}},10);}
+      row.addEventListener('touchend',fire,{passive:false});
+      row.addEventListener('click',fire);
+      sheet.appendChild(row);
     });
-    document.body.appendChild(menu);
-    setTimeout(function(){
-      document.addEventListener('click',function close(e){if(!menu.contains(e.target)&&e.target!==btn){menu.remove();document.removeEventListener('click',close);}});
-    },50);
+    var cancel=document.createElement('button');
+    cancel.textContent='Cancel';
+    cancel.style.cssText='display:block;width:100%;text-align:center;padding:14px;background:none;border:0;color:var(--muted);font-size:14px;cursor:pointer;font-family:inherit;margin-top:4px;touch-action:manipulation;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none';
+    var cancelHandled=false;
+    function closeSheet(ev){if(cancelHandled)return;cancelHandled=true;ev.preventDefault();ev.stopPropagation();overlay.remove();}
+    cancel.addEventListener('touchend',closeSheet,{passive:false});
+    cancel.addEventListener('click',closeSheet);
+    sheet.appendChild(cancel);
+    overlay.appendChild(sheet);
+    // Tap outside sheet closes (but only on the overlay, not sheet content)
+    overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove();});
+    document.body.appendChild(overlay);
   }
-  btn.addEventListener('click',openMenu);
+  btn.addEventListener('click',openSheet);
 })();
 
 // ── PIN ─────────────────────────────────────────────────────────────────────
