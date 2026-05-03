@@ -247,7 +247,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
       <div class="topbar-time" id="topbar-time" style="display:none">-</div>
       <button class="btn-settings" id="btn-refresh" title="Refresh now" style="font-size:14px">&#8635;</button>
       <button class="btn-settings" id="btn-notify" title="Enable push notifications" style="font-size:14px">&#128276;</button>
-      <button class="btn-settings" id="btn-settings" title="Settings">&#9881;<span class="token-dot" id="token-dot" style="background:var(--red)"></span></button>
+      <button class="btn-settings" id="btn-settings" title="Settings">&#9881;</button>
     </div>
   </div>
 
@@ -384,17 +384,9 @@ function hqApi(path,opts){
   });
 }
 
-function updateTokenDot(){
-  var dot=document.getElementById('token-dot');
-  if(!dot)return;
-  // Use a plain GET (no X-HQ-Pin header) to avoid CORS preflight false-alarms
-  // on /health. /health is public anyway.
-  fetch(window.HQ_API_BASE+'/health',{method:'GET'}).then(function(r){
-    return r.ok?r.json():null;
-  }).then(function(j){
-    dot.style.background=(j&&j.ok)?'var(--green)':'var(--red)';
-  }).catch(function(){dot.style.background='var(--red)';});
-}
+// token-dot was removed (was a stale GitHub-PAT health indicator).
+// Stub remains for any leftover callers.
+function updateTokenDot(){}
 
 // hqCmd(type, contextLabel, body, onSuccess)
 //   Routes:
