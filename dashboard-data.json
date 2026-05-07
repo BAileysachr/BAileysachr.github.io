@@ -1,13 +1,13 @@
 {
-  "updatedAt": "2026-05-07T01:47:45.620Z",
+  "updatedAt": "2026-05-07T01:52:45.631Z",
   "pendingDrafts": 83,
-  "emailsToday": 7,
+  "emailsToday": 8,
   "autonomousRate": 21,
   "openFollowUps": 0,
   "sentToday": 0,
   "byBusinessToday": {
     "plastix": 5,
     "luma": 0,
-    "lilhottie": 0
+    "lilhottie": 1
   }
 }
