@@ -155,10 +155,18 @@
       });
 
       const ts = new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      // Bulk actions shown when there's more than 1 draft pending —
+      // when there's only 1, the individual buttons on the card are fine.
+      const bulkBar = real.length > 1
+        ? `<div style="display:flex;gap:6px;margin:0 0 10px 0;align-items:center">
+            <button id="drafts-approve-all" style="flex:1;padding:9px 12px;border:0;border-radius:8px;background:#22c55e;color:#fff;font-weight:700;font-size:13px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent">✓ Approve all (${real.length})</button>
+            <button id="drafts-reject-all" style="flex:1;padding:9px 12px;border:0;border-radius:8px;background:#475569;color:#fff;font-weight:700;font-size:13px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent">✗ Ignore all (${real.length})</button>
+          </div>`
+        : '';
       root.innerHTML = `<div style="opacity:.55;font-size:12px;margin:0 0 10px 0;display:flex;gap:8px;align-items:center">
         <span>${real.length} draft${real.length===1?'':'s'} · updated ${ts}</span>
         <button id="drafts-refresh" style="margin-left:auto;padding:4px 10px;border:1px solid #334;border-radius:6px;background:#111;color:#ddd;cursor:pointer">↻ Refresh</button>
-      </div>` + real.map(renderCard).join('');
+      </div>` + bulkBar + real.map(renderCard).join('');
 
       // Restore open edit panels + textarea content after re-render
       Object.keys(savedEdits).forEach(function(n) {
@@ -174,6 +182,55 @@
 
       const rb = document.getElementById('drafts-refresh');
       if (rb) rb.addEventListener('click', function() { refresh(true); });
+
+      // Bulk approve — sequential to keep order + give backend room to breathe.
+      const approveAllBtn = document.getElementById('drafts-approve-all');
+      if (approveAllBtn) approveAllBtn.addEventListener('click', async () => {
+        const n = real.length;
+        if (!confirm(`Approve and send all ${n} drafts immediately? This cannot be undone.`)) return;
+        approveAllBtn.disabled = true; approveAllBtn.textContent = `Approving 0/${n}…`;
+        const rejectAllBtn = document.getElementById('drafts-reject-all');
+        if (rejectAllBtn) rejectAllBtn.disabled = true;
+        let sent = 0; let failed = 0;
+        for (const draft of real) {
+          const card = root.querySelector(`.draft-card[data-issue="${draft.number}"]`);
+          try {
+            await api(`/api/drafts/${draft.number}/approve`, { method: 'POST', body: '{}' });
+            fadeOutCard(card);
+            sent += 1;
+          } catch (err) {
+            restoreCard(card);
+            failed += 1;
+          }
+          approveAllBtn.textContent = `Approving ${sent}/${n}…`;
+        }
+        approveAllBtn.textContent = `Sent ${sent}${failed ? ` · ${failed} failed` : ''}`;
+        setTimeout(() => refresh(true), 800);
+      });
+
+      // Bulk reject — sequential. Confirms once before starting.
+      const rejectAllBtn = document.getElementById('drafts-reject-all');
+      if (rejectAllBtn) rejectAllBtn.addEventListener('click', async () => {
+        const n = real.length;
+        if (!confirm(`Reject and bin all ${n} drafts? They'll be removed from your dashboard and Outlook Drafts folder.`)) return;
+        rejectAllBtn.disabled = true; rejectAllBtn.textContent = `Rejecting 0/${n}…`;
+        if (approveAllBtn) approveAllBtn.disabled = true;
+        let done = 0; let failed = 0;
+        for (const draft of real) {
+          const card = root.querySelector(`.draft-card[data-issue="${draft.number}"]`);
+          try {
+            await api(`/api/drafts/${draft.number}/reject`, { method: 'POST', body: '{}' });
+            fadeOutCard(card);
+            done += 1;
+          } catch (err) {
+            restoreCard(card);
+            failed += 1;
+          }
+          rejectAllBtn.textContent = `Rejecting ${done}/${n}…`;
+        }
+        rejectAllBtn.textContent = `Binned ${done}${failed ? ` · ${failed} failed` : ''}`;
+        setTimeout(() => refresh(true), 800);
+      });
     } catch (err) {
       root.innerHTML = `<div class="drafts-empty">Load failed: ${escapeHtml(err.message)}<br><small>Backend: ${API}</small></div>`;
     } finally {
