@@ -276,6 +276,19 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
     </div>
   </div>
 
+  <!-- Persistent banner nagging Bailey to enable push, hidden once enabled.
+       Push is now the ONLY notification channel (Twilio decommissioned). -->
+  <div id="push-nag-banner" style="display:none;margin:10px 14px;padding:12px 14px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border-radius:12px;font-size:13px;line-height:1.4;box-shadow:0 4px 12px rgba(245,158,11,.25)">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="font-size:24px">🔔</div>
+      <div style="flex:1">
+        <div style="font-weight:700;margin-bottom:2px">Notifications are off</div>
+        <div style="font-size:12px;opacity:.95" id="push-nag-msg">Tap to enable — without this you won't be told when drafts need approval.</div>
+      </div>
+      <button id="push-nag-btn" style="background:rgba(255,255,255,.25);border:0;color:#fff;padding:8px 14px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;touch-action:manipulation;-webkit-tap-highlight-color:transparent">Enable</button>
+    </div>
+  </div>
+
   <div class="stats">
     <div class="stat g"><div class="stat-num" id="s-act">0</div><div class="stat-lbl">Actioned</div></div>
     <div class="stat r"><div class="stat-num" id="s-nb">0</div><div class="stat-lbl">Need You</div></div>
@@ -1511,8 +1524,39 @@ async function enablePush(){
 document.getElementById('btn-notify').addEventListener('click',enablePush);
 // Auto-register SW for future push
 if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(function(){});}
-// Tint bell green if already enabled
-if(localStorage.getItem('hq-push-enabled')==='1'){var bn=document.getElementById('btn-notify');if(bn)bn.style.color='var(--green)';}
+
+// Push enable banner — Bailey HQ has no SMS/WhatsApp anymore, so push is
+// the only alert channel. Show a sticky orange banner until Bailey enables.
+(function(){
+  function updatePushBanner(){
+    var banner=document.getElementById('push-nag-banner');
+    var bell=document.getElementById('btn-notify');
+    if(!banner)return;
+    var enabled=localStorage.getItem('hq-push-enabled')==='1';
+    var perm=('Notification' in window)?Notification.permission:'unsupported';
+    if(enabled&&perm==='granted'){
+      banner.style.display='none';
+      if(bell)bell.style.color='var(--green)';
+      return;
+    }
+    if(bell)bell.style.color='';
+    banner.style.display='block';
+    var msg=document.getElementById('push-nag-msg');
+    if(msg){
+      if(isIOS()&&!isStandalone())msg.textContent='iPhone needs the dashboard installed first — tap Share → Add to Home Screen, open from the icon, then tap Enable.';
+      else if(perm==='denied')msg.textContent='You blocked notifications. Open iPhone Settings → Notifications → Bailey HQ → Allow.';
+      else msg.textContent='Tap to enable — without this you won’t be told when drafts need approval.';
+    }
+  }
+  var nagBtn=document.getElementById('push-nag-btn');
+  if(nagBtn){
+    nagBtn.addEventListener('click',function(){enablePush().then(updatePushBanner);});
+    nagBtn.addEventListener('touchend',function(e){e.preventDefault();enablePush().then(updatePushBanner);},{passive:false});
+  }
+  updatePushBanner();
+  // Re-check periodically (e.g., after Bailey enables via OS settings)
+  setInterval(updatePushBanner,5000);
+})();
 </script>
 <script src="drafts-tab.js?v=20260415e" defer></script>
 <script src="vault-tab.js?v=20260415e" defer></script>
